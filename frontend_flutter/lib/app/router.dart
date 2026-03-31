@@ -1,9 +1,6 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../data/local/bike_storage.dart';
-import '../presentation/providers/providers.dart';
+import '../presentation/screens/dashboard/dashboard_screen.dart';
 import '../presentation/screens/import_session/import_screen.dart';
 import '../presentation/screens/calibrate/calibrate_screen.dart';
 import '../presentation/screens/analyze/analyze_screen.dart';
@@ -15,14 +12,24 @@ import '../presentation/widgets/app_shell.dart';
 /// GoRouter configuration.
 ///
 /// Routes use a StatefulShellRoute so each tab retains its navigation stack.
-/// The Simulator branch is always included in the route tree but only shown
-/// in the [AppShell] bottom nav when debug mode is enabled.
+/// Branch indices (fixed):
+///   0 = /dashboard, 1 = /import, 2 = /calibrate, 3 = /analyze,
+///   4 = /compare,   5 = /simulator,  6 = /settings
+///
+/// The Simulator branch is always in the route tree but only shown in the
+/// [AppShell] bottom nav when debug mode is enabled.
 final GoRouter appRouter = GoRouter(
-  initialLocation: '/import',
+  initialLocation: '/dashboard',
   routes: [
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => AppShell(navigationShell: shell),
       branches: [
+        StatefulShellBranch(routes: [
+          GoRoute(
+            path: '/dashboard',
+            builder: (_, __) => const DashboardScreen(),
+          ),
+        ]),
         StatefulShellBranch(routes: [
           GoRoute(
             path: '/import',

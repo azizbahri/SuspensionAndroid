@@ -454,17 +454,72 @@ class _BikeFormState extends ConsumerState<_BikeForm> {
   late final _slugCtrl =
       TextEditingController(text: widget.bike?.slug ?? '');
 
+  // Numeric fields — initialised from the bike being edited, or T7 defaults.
+  late final _wMaxFrontCtrl = _ctrl(widget.bike?.wMaxFrontMm ?? 210.0);
+  late final _wMaxRearCtrl = _ctrl(widget.bike?.wMaxRearMm ?? 210.0);
+  late final _forkAngleCtrl = _ctrl(widget.bike?.forkAngleDeg ?? 27.0);
+  late final _cFrontCtrl = _ctrl(widget.bike?.cFront ?? 42.0);
+  late final _v0FrontCtrl = _ctrl(widget.bike?.v0Front ?? 0.50);
+  late final _cRearCtrl = _ctrl(widget.bike?.cRear ?? 18.5);
+  late final _v0RearCtrl = _ctrl(widget.bike?.v0Rear ?? 0.40);
+  late final _linkageACtrl = _ctrl(widget.bike?.linkageA ?? -0.015);
+  late final _linkageBCtrl = _ctrl(widget.bike?.linkageB ?? 4.20);
+  late final _linkageCCtrl = _ctrl(widget.bike?.linkageC ?? 0.0);
+  late final _adcBitsCtrl = _ctrl(widget.bike?.adcBits ?? 12);
+  late final _vRefCtrl = _ctrl(widget.bike?.vRef ?? 5.0);
+  late final _fsHzCtrl = _ctrl(widget.bike?.fsHz ?? 250.0);
+  late final _lpfDispCtrl = _ctrl(widget.bike?.lpfCutoffDispHz ?? 20.0);
+  late final _lpfGyroCtrl = _ctrl(widget.bike?.lpfCutoffGyroHz ?? 10.0);
+  late final _compAlphaCtrl = _ctrl(widget.bike?.complementaryAlpha ?? 0.98);
+  late final _statSamplesCtrl = _ctrl(widget.bike?.stationarySamples ?? 250);
+  late final _gyroSensCtrl = _ctrl(widget.bike?.gyroSensitivity ?? 16.4);
+  late final _accelSensCtrl = _ctrl(widget.bike?.accelSensitivity ?? 2048.0);
+  late final _lsThreshCtrl = _ctrl(widget.bike?.lsThresholdMmS ?? 150.0);
+
+  TextEditingController _ctrl(num v) =>
+      TextEditingController(text: v.toString());
+
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _slugCtrl.dispose();
+    for (final c in [
+      _nameCtrl, _slugCtrl,
+      _wMaxFrontCtrl, _wMaxRearCtrl, _forkAngleCtrl,
+      _cFrontCtrl, _v0FrontCtrl, _cRearCtrl, _v0RearCtrl,
+      _linkageACtrl, _linkageBCtrl, _linkageCCtrl,
+      _adcBitsCtrl, _vRefCtrl, _fsHzCtrl,
+      _lpfDispCtrl, _lpfGyroCtrl, _compAlphaCtrl, _statSamplesCtrl,
+      _gyroSensCtrl, _accelSensCtrl, _lsThreshCtrl,
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   Future<void> _save() async {
-    final profile = (widget.bike ?? BikeProfile.t7).copyWith(
+    final defaults = widget.bike ?? BikeProfile.t7;
+    final profile = defaults.copyWith(
       name: _nameCtrl.text.trim(),
       slug: _slugCtrl.text.trim().toLowerCase().replaceAll(' ', '_'),
+      wMaxFrontMm: double.tryParse(_wMaxFrontCtrl.text) ?? defaults.wMaxFrontMm,
+      wMaxRearMm: double.tryParse(_wMaxRearCtrl.text) ?? defaults.wMaxRearMm,
+      forkAngleDeg: double.tryParse(_forkAngleCtrl.text) ?? defaults.forkAngleDeg,
+      cFront: double.tryParse(_cFrontCtrl.text) ?? defaults.cFront,
+      v0Front: double.tryParse(_v0FrontCtrl.text) ?? defaults.v0Front,
+      cRear: double.tryParse(_cRearCtrl.text) ?? defaults.cRear,
+      v0Rear: double.tryParse(_v0RearCtrl.text) ?? defaults.v0Rear,
+      linkageA: double.tryParse(_linkageACtrl.text) ?? defaults.linkageA,
+      linkageB: double.tryParse(_linkageBCtrl.text) ?? defaults.linkageB,
+      linkageC: double.tryParse(_linkageCCtrl.text) ?? defaults.linkageC,
+      adcBits: int.tryParse(_adcBitsCtrl.text) ?? defaults.adcBits,
+      vRef: double.tryParse(_vRefCtrl.text) ?? defaults.vRef,
+      fsHz: double.tryParse(_fsHzCtrl.text) ?? defaults.fsHz,
+      lpfCutoffDispHz: double.tryParse(_lpfDispCtrl.text) ?? defaults.lpfCutoffDispHz,
+      lpfCutoffGyroHz: double.tryParse(_lpfGyroCtrl.text) ?? defaults.lpfCutoffGyroHz,
+      complementaryAlpha: double.tryParse(_compAlphaCtrl.text) ?? defaults.complementaryAlpha,
+      stationarySamples: int.tryParse(_statSamplesCtrl.text) ?? defaults.stationarySamples,
+      gyroSensitivity: double.tryParse(_gyroSensCtrl.text) ?? defaults.gyroSensitivity,
+      accelSensitivity: double.tryParse(_accelSensCtrl.text) ?? defaults.accelSensitivity,
+      lsThresholdMmS: double.tryParse(_lsThreshCtrl.text) ?? defaults.lsThresholdMmS,
     );
 
     if (widget.bike != null) {
@@ -477,30 +532,110 @@ class _BikeFormState extends ConsumerState<_BikeForm> {
     widget.onSaved(profile);
   }
 
+  Widget _numericField(TextEditingController ctrl, String label) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: TextField(
+          controller: ctrl,
+          keyboardType:
+              const TextInputType.numberWithOptions(decimal: true, signed: true),
+          decoration: InputDecoration(
+            labelText: label,
+            border: const OutlineInputBorder(),
+            isDense: true,
+          ),
+        ),
+      );
+
+  Widget _sectionLabel(String label) => Padding(
+        padding: const EdgeInsets.only(bottom: 4, top: 4),
+        child: Text(label,
+            style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                color: Colors.grey)),
+      );
+
   @override
   Widget build(BuildContext context) => Card(
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(widget.bike == null ? 'New Bike Profile' : 'Edit Bike Profile',
+              Text(
+                  widget.bike == null
+                      ? 'New Bike Profile'
+                      : 'Edit Bike Profile',
                   style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
+
+              // Identity
               TextField(
                 controller: _nameCtrl,
                 decoration: const InputDecoration(
-                    labelText: 'Name', border: OutlineInputBorder(), isDense: true),
+                    labelText: 'Name',
+                    border: OutlineInputBorder(),
+                    isDense: true),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _slugCtrl,
                 decoration: const InputDecoration(
-                    labelText: 'Slug (ID)', border: OutlineInputBorder(), isDense: true),
+                    labelText: 'Slug (ID)',
+                    border: OutlineInputBorder(),
+                    isDense: true),
               ),
+              const SizedBox(height: 4),
+
+              // Travel limits & geometry
+              _sectionLabel('Travel Limits & Geometry'),
+              _numericField(_wMaxFrontCtrl, 'Max front travel (mm)'),
+              _numericField(_wMaxRearCtrl, 'Max rear travel (mm)'),
+              _numericField(_forkAngleCtrl, 'Fork angle (°)'),
+
+              // Front calibration
+              _sectionLabel('Front Calibration'),
+              _numericField(_cFrontCtrl, 'C front (mm/V)'),
+              _numericField(_v0FrontCtrl, 'V0 front (V)'),
+
+              // Rear calibration
+              _sectionLabel('Rear Calibration'),
+              _numericField(_cRearCtrl, 'C rear (mm/V)'),
+              _numericField(_v0RearCtrl, 'V0 rear (V)'),
+
+              // Linkage polynomial
+              _sectionLabel('Linkage Polynomial  W = A·s² + B·s + C'),
+              _numericField(_linkageACtrl, 'Linkage A'),
+              _numericField(_linkageBCtrl, 'Linkage B'),
+              _numericField(_linkageCCtrl, 'Linkage C'),
+
+              // ADC & acquisition
+              _sectionLabel('ADC & Acquisition'),
+              _numericField(_adcBitsCtrl, 'ADC bits'),
+              _numericField(_vRefCtrl, 'V ref (V)'),
+              _numericField(_fsHzCtrl, 'Sample rate (Hz)'),
+
+              // Filters
+              _sectionLabel('Signal Filters'),
+              _numericField(_lpfDispCtrl, 'LPF disp cutoff (Hz)'),
+              _numericField(_lpfGyroCtrl, 'LPF gyro cutoff (Hz)'),
+              _numericField(_compAlphaCtrl, 'Complementary α'),
+              _numericField(_statSamplesCtrl, 'Stationary samples'),
+
+              // IMU sensitivity
+              _sectionLabel('IMU Sensitivity'),
+              _numericField(_gyroSensCtrl, 'Gyro sensitivity'),
+              _numericField(_accelSensCtrl, 'Accel sensitivity'),
+
+              // Advisor
+              _sectionLabel('Advisor'),
+              _numericField(_lsThreshCtrl, 'LS threshold (mm/s)'),
+
               const SizedBox(height: 8),
               Row(children: [
-                ElevatedButton(onPressed: _save, child: const Text('Save')),
+                ElevatedButton(
+                    onPressed: _save, child: const Text('Save')),
                 const SizedBox(width: 8),
                 TextButton(
                     onPressed: widget.onCancelled,
@@ -511,3 +646,4 @@ class _BikeFormState extends ConsumerState<_BikeForm> {
         ),
       );
 }
+
