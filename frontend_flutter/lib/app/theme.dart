@@ -12,10 +12,6 @@ final ThemeData appTheme = ThemeData(
     centerTitle: false,
     elevation: 0,
   ),
-  cardTheme: const CardTheme(
-    elevation: 1,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-  ),
   inputDecorationTheme: const InputDecorationTheme(
     border: OutlineInputBorder(),
     isDense: true,
