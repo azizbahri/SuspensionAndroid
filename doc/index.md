@@ -24,11 +24,8 @@ This directory contains three categories of material:
 - [foundation/rebound_damping_report.md](foundation/rebound_damping_report.md): Detailed explanation of how the rebound side of Graph 2 and telemetry are used to diagnose packing, pogo behavior, and rebound-damping balance.
 
 ## Software Design Notes
-These materials are planned but not present in this branch. See the documentation index for available content: [README.md](README.md) or [doc/README.md](README.md).
 
-## Implementation Notes
-
-- [frontend_testing_plan.md](frontend_testing_plan.md): Test strategy, tooling stack (Vitest + Testing Library + MSW), setup instructions, and a complete catalogue of test cases for every page and component in the React frontend.
+- [software-design/README.md](software-design/README.md): Flutter app architecture — layer diagram, data flow, hardware abstraction, and simulator design.
 
 ## Recommended Reading Order
 
@@ -44,8 +41,4 @@ These materials are planned but not present in this branch. See the documentatio
 
 ## Software Reading Order
 
-Software-design reading sequences are planned but not present in this branch. Refer to the documentation index for available content: [README.md](README.md).
-
-## Implementation Reading Order
-
-Implementation reading sequences are planned but not present in this branch. Refer to the documentation index for available content: [README.md](README.md).
+1. [software-design/README.md](software-design/README.md)

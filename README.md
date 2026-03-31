@@ -1,34 +1,61 @@
-# Suspension Study
+# Suspension Study — Android
 
-A post-processing desktop application for motorcycle suspension DAQ data. Upload a CSV from the logger, calibrate the sensors, and get travel histograms, velocity histograms, pitch telemetry, and tuning recommendations grounded in the physics documented here.
+A native Android application for motorcycle suspension DAQ analysis, built in Flutter/Dart.
+All signal processing runs **on-device** — no backend server, no network required.
 
-Primary target: **Yamaha Ténéré 700** (T7), with T7 linkage constants pre-populated. Other bikes can be added through the Calibrate page.
+Primary target: **Yamaha Ténéré 700** (T7), with T7 linkage constants pre-populated.
+Other bikes can be added through the Calibrate screen.
 
 ---
 
 ## Quick Start
 
-Open two terminal windows from the repository root.
+### Prerequisites
 
-**Terminal 1 — API server:**
+- Flutter SDK ≥ 3.22.0
+- Android SDK with API 31+ (Android 12)
+- An Android device or emulator (API 31+)
+
+### 1. Scaffold the Flutter project
+
+The repository ships `lib/`, `test/`, `android/`, and `pubspec.yaml`.
+Run `flutter create` once to generate the remaining Gradle boilerplate:
 
 ```bash
-cd backend
-pip install -e ".[dev]"        # first time only
-uvicorn app.main:app --reload --port 8000
+cd frontend_flutter
+flutter create --project-name suspension_android \
+               --org com.suspensionstudy \
+               --platforms android \
+               .
 ```
 
-**Terminal 2 — UI:**
+> Use `--overwrite` if prompted, or manually merge generated files with the ones already present.
+
+### 2. Install dependencies
 
 ```bash
-cd frontend
-npm install                    # first time only
-npm run dev
+cd frontend_flutter
+flutter pub get
 ```
 
-Open **`http://localhost:5173`** in a browser.
+### 3. Run on device
 
-The API must be running for the UI to function. Interactive API docs are at **`http://localhost:8000/docs`**.
+```bash
+cd frontend_flutter
+flutter run
+```
+
+### 4. Run tests
+
+```bash
+cd frontend_flutter
+
+# Unit tests only (no device required)
+flutter test test/unit/
+
+# All tests
+flutter test
+```
 
 ---
 
@@ -36,149 +63,43 @@ The API must be running for the UI to function. Interactive API docs are at **`h
 
 Theoretical framework: [doc/foundation/overview.md](doc/foundation/overview.md)  
 Documentation index: [doc/README.md](doc/README.md)  
-Frontend test plan: [doc/frontend_testing_plan.md](doc/frontend_testing_plan.md)
+App architecture: [doc/software-design/README.md](doc/software-design/README.md)  
+Flutter project README: [frontend_flutter/README.md](frontend_flutter/README.md)
 
 ---
 
 ## Architecture
 
 ```
-suspension_study/
-├── backend/     # Python FastAPI — signal processing + REST API
-└── frontend/    # React + TypeScript + Vite — UI
+SuspensionAndroid/
+├── frontend_flutter/   # Flutter/Dart Android app — all processing on-device
+└── doc/                # Engineering foundation & software-design documents
 ```
 
-All data is stored locally (`~/.suspension_study/`). No cloud services.
+No backend server. No cloud services. All data is stored locally on the device.
 
----
-
-## Backend
-
-### Prerequisites
-
-- Python 3.10 or newer
-- pip
-
-### Install
-
-```bash
-cd backend
-pip install -e ".[dev]"
-```
-
-### Run
-
-```bash
-cd backend
-uvicorn app.main:app --reload --port 8000
-```
-
-API is served at `http://localhost:8000/api/v1`.  
-Interactive docs: `http://localhost:8000/docs`
-
-### Run Tests
-
-The test suite uses a hardware simulator that generates physically realistic DAQ CSV files from first principles (forward model → sensor quantization → noise). All 35 tests must pass before the backend is considered healthy.
-
-```bash
-cd backend
-python -m pytest tests/ -v
-```
-
-### Simulate DAQ Data (`daq-simulate`)
-
-The hardware simulator is also available as a standalone command-line tool after `pip install -e ".[dev]"`. Use it to generate realistic CSV files for manual testing, UI development, or any workflow that needs known-scenario data without real hardware.
-
-```bash
-# List all available scenarios
-daq-simulate list
-
-# Bike stationary at sag (default T7 profile, realistic noise)
-daq-simulate static_sag sag.csv
-
-# Hard braking, 15 seconds, no noise (clean signal)
-daq-simulate braking braking.csv --duration 15 --no-noise
-
-# Rough terrain, 60 s, reproducible seed
-daq-simulate rough_terrain rough.csv --duration 60 --seed 7
-
-# Square-edge hit with custom fork calibration constants
-daq-simulate square_edge hit.csv --c-front 38.5 --v0-front 0.55
-
-# Jump and landing, output to specific path
-daq-simulate jump_landing /tmp/jump.csv
-```
-
-Full option reference:
-
-```
-daq-simulate SCENARIO OUTPUT [--duration SECONDS] [--fs HZ]
-             [--noise | --no-noise] [--seed INT]
-             [--front-noise LSB] [--rear-noise LSB]
-             [--gyro-noise COUNTS] [--gyro-bias DEG/S]
-             [--fork-angle DEG] [--c-front MM/V] [--v0-front V]
-             [--c-rear MM/V] [--v0-rear V]
-             [--linkage-a COEF] [--linkage-b COEF] [--linkage-c COEF]
-             [--v-ref V] [--adc-bits BITS]
-             [--gyro-sensitivity LSB/DPS] [--accel-sensitivity LSB/G]
-```
-
-The CSV output matches the DAQ column schema (`time_s`, `front_raw`, `rear_raw`, `gyro_y_raw`, `accel_x_raw`, `accel_y_raw`, `accel_z_raw`) and can be imported directly through the Import page.
-
----
-
-## Frontend
-
-### Prerequisites
-
-- Node.js 20 or newer
-- npm
-
-### Install
-
-```bash
-cd frontend
-npm install
-```
-
-### Run (development)
-
-Start the backend first (see above), then:
-
-```bash
-cd frontend
-npm run dev
-```
-
-App opens at `http://localhost:5173`.
-
-### Build (production)
-
-```bash
-cd frontend
-npm run build
-```
-
-Output is written to `frontend/dist/`.
+See [frontend_flutter/README.md](frontend_flutter/README.md) for the full layer diagram,
+data-flow diagram, and setup instructions.
 
 ---
 
 ## Workflow
 
-1. **Import** — Paste the absolute path to a DAQ CSV file. Map column names to sensor channels. Select the bike profile and velocity quantity (wheel vs shaft).
+1. **Import** — Pick a DAQ CSV file. Map column names to sensor channels. Select the bike profile.
 2. **Calibrate** — Fit front linear calibration from a voltage-sweep. Fit rear linkage polynomial from a stroke-sweep. Manage bike profiles.
-3. **Analyze** — Run signal processing on the session. View travel histogram, velocity histogram, pitch telemetry, and the tuning advisor diagnostics.
-4. **Compare** — Select two or more sessions and overlay their histograms at session or segment granularity.
+3. **Analyze** — Run the signal processing pipeline on the session. View travel histogram, velocity histogram, pitch telemetry, and tuning advisor diagnostics.
+4. **Compare** — Select two or more sessions and overlay their histograms.
+5. **Simulator** *(debug)* — Generate synthetic DAQ data on-device from 6 physically realistic scenarios — no hardware required.
 
 ---
 
 ## CSV Format
 
-The logger must produce a CSV with at minimum these columns (names are user-configurable in the Import page):
+The logger must produce a CSV with at minimum these columns (names are user-configurable in the Import screen):
 
 | Column | Description |
 |--------|-------------|
-| `time_s` | Elapsed time in seconds (optional — if absent, timestamps are generated from `fs_hz`) |
+| `time_s` | Elapsed time in seconds (optional — generated from `fs_hz` if absent) |
 | `front_raw` | Front potentiometer ADC count (12-bit integer) |
 | `rear_raw` | Rear shock potentiometer ADC count (12-bit integer) |
 | `gyro_y_raw` | IMU Y-axis gyroscope (signed int16, pitch rate) |
@@ -193,10 +114,13 @@ Minimum sample rate: **250 Hz**.
 ## Signal Processing Pipeline
 
 ```
-ADC counts → voltage → displacement (mm) → LPF (20 Hz Butterworth)
-         → velocity (backward difference) → histogram
+ADC counts → voltage → displacement (mm) → LPF (20 Hz Butterworth, zero-phase)
+           → velocity (backward difference) → travel + velocity histograms
 
-gyro raw → deg/s → LPF (10 Hz) → complementary filter with accel pitch → pitch trace
+gyro raw → deg/s → bias removal → LPF (10 Hz) → complementary filter (α = 0.98)
+         → pitch trace
 ```
 
-The complementary filter is always used (never gyro-only) with α = 0.98. See [doc/foundation/pitch_angle_report.md](doc/foundation/pitch_angle_report.md) for derivation.
+All processing is implemented in pure Dart in `frontend_flutter/lib/data/processing/`.
+See [doc/foundation/pitch_angle_report.md](doc/foundation/pitch_angle_report.md) for the
+complementary filter derivation.
