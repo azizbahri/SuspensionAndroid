@@ -89,7 +89,7 @@ class _CalibrateScreenState extends ConsumerState<CalibrateScreen> {
     if (bike == null) return;
     await ref
         .read(bikesProvider.notifier)
-        .update(_selectedSlug!, bike.copyWith(cFront: r.cCal, v0Front: r.v0));
+      .updateBike(_selectedSlug!, bike.copyWith(cFront: r.cCal, v0Front: r.v0));
   }
 
   Future<void> _applyRear(RearCalibrationResult r) async {
@@ -97,7 +97,7 @@ class _CalibrateScreenState extends ConsumerState<CalibrateScreen> {
     final bikes = ref.read(bikesProvider).valueOrNull ?? [];
     final bike = bikes.where((b) => b.slug == _selectedSlug).firstOrNull;
     if (bike == null) return;
-    await ref.read(bikesProvider.notifier).update(
+    await ref.read(bikesProvider.notifier).updateBike(
         _selectedSlug!,
         bike.copyWith(
             linkageA: r.a, linkageB: r.b, linkageC: r.c));
@@ -470,7 +470,7 @@ class _BikeFormState extends ConsumerState<_BikeForm> {
     if (widget.bike != null) {
       await ref
           .read(bikesProvider.notifier)
-          .update(widget.bike!.slug, profile);
+          .updateBike(widget.bike!.slug, profile);
     } else {
       await ref.read(bikesProvider.notifier).create(profile);
     }

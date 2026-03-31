@@ -114,7 +114,7 @@ class BikesNotifier extends AsyncNotifier<List<BikeProfile>> {
     );
   }
 
-  Future<void> update(String slug, BikeProfile bike) async {
+  Future<void> updateBike(String slug, BikeProfile bike) async {
     final result = await ref.read(updateBikeUseCaseProvider)(slug, bike);
     result.fold(
       onSuccess: (_) => ref.invalidateSelf(),
