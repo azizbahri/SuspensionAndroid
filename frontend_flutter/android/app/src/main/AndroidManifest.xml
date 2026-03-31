@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AndroidManifest.xml for Suspension Study Android app.
+
+    Key declarations:
+    1. USB host mode feature — required for future USB OTG DAQ integration
+    2. USB device attached intent filter — allows app to launch when DAQ is plugged in
+    3. Storage Access Framework handles CSV file access automatically (no legacy storage
+       permissions needed on Android 11+ when using file_picker via SAF)
+    4. INTERNET is NOT declared — this app has no network dependencies
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- USB OTG host mode: declares that the app can act as USB host.
+         The DAQ will be detected as a USB device. Set required="false" so
+         the app remains installable on non-OTG devices for simulator use. -->
+    <uses-feature
+        android:name="android.hardware.usb.host"
+        android:required="false" />
+
+    <!-- Bluetooth LE: future BLE data source (not yet implemented).
+         BLUETOOTH_SCAN and BLUETOOTH_CONNECT require minSdk >= 31. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <application
+        android:label="Suspension Study"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+
+            <!-- Flutter initial route -->
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+
+            <!-- App entry point -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+
+            <!-- USB device attached: launches/resumes app when DAQ is plugged in.
+                 The USB device filter is defined in res/xml/device_filter.xml -->
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
+
+        </activity>
+
+        <!-- Don't delete the FlutterActivity — required by flutter embedding -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+
+    </application>
+</manifest>

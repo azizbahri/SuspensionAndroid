@@ -1,0 +1,41 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    // Flutter plugin must be applied after Android/Kotlin plugins.
+    id 'dev.flutter.flutter-gradle-plugin'
+}
+
+android {
+    namespace = 'com.suspensionstudy.suspension_android'
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17.toString()
+    }
+
+    defaultConfig {
+        applicationId = 'com.suspensionstudy.suspension_android'
+        // Keep Android 12+ for USB host/runtime permission behavior.
+        minSdk = 31
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+
+    buildTypes {
+        release {
+            // Keep debug signing for now so local release builds work without keystore setup.
+            signingConfig = signingConfigs.debug
+        }
+    }
+}
+
+flutter {
+    source = '../..'
+}

@@ -1,10 +1,9 @@
 # Suspension DAQ Documentation
 
-This folder is split into three layers:
+This folder is split into two layers:
 
 - the theoretical foundation of the suspension-analysis framework,
-- software-design documents that describe how the framework could be turned into a user-facing product,
-- implementation-facing documents that define backend contracts, data structures, and delivery sequencing.
+- software-design documents that describe how the framework is implemented in the Flutter Android application.
 
 ## Start Here
 
@@ -26,15 +25,7 @@ This folder is split into three layers:
 
 ## Software Design
 
-- See [index.md](index.md) for available software-design materials and planned content.
-
-## Implementation Planning
-
-- See [index.md](index.md) for implementation planning notes and roadmap links when available.
-
-## Progress Tracking
-
-- Repository progress tracker was removed from this branch; see [index.md](index.md) for current documentation status.
+- [software-design/README.md](software-design/README.md): Flutter app architecture — layer diagram, data flow, hardware abstraction, simulator
 
 ## Suggested Reading Order
 
@@ -50,12 +41,4 @@ This folder is split into three layers:
 
 ## Software Reading Path
 
-These software-design reading materials are planned but not present in this branch. See the documentation index for current available content: [index.md](index.md).
-
-## Implementation Reading Path
-
-Implementation reading material references are planned but not present in this branch. See [index.md](index.md) for the current documentation state.
-
-## Legacy Index
-
-The original index remains available in [index.md](index.md).
+1. [software-design/README.md](software-design/README.md): Flutter architecture overview

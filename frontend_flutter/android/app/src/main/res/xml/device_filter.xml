@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    USB device filter for the DAQ hardware.
+
+    Currently uses a permissive filter (vendor-id=0, product-id=0) as placeholder
+    because the DAQ hardware VID/PID are not yet known.
+
+    TODO: Replace with the actual DAQ VID and PID once hardware is available.
+    Example for an FTDI FT232R:
+        <usb-device vendor-id="1027" product-id="24577" />
+    Example for Arduino Uno R3 (CH340):
+        <usb-device vendor-id="6790" product-id="29987" />
+
+    Note: vendor-id and product-id are decimal integers (not hex).
+    Find them with `adb shell cat /proc/bus/usb/devices` when DAQ is connected.
+-->
+<resources>
+    <!-- Placeholder: accepts any USB device. Narrow this once hardware is known. -->
+    <usb-device />
+</resources>
