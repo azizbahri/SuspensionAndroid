@@ -38,9 +38,12 @@ enum _GraphType {
 
 /// Compare up to 3 analyzed sessions side-by-side.
 ///
-/// Shows a single full-detail chart at a time.  A floating round button
-/// opens a collapsible bottom menu for switching graph types.  The chart
-/// area supports pinch-zoom and pan via [InteractiveViewer].
+/// Two modes:
+///  - **Selector view** (no results yet): compact scrollable session list +
+///    Compare button.
+///  - **Chart view** (results available): single full-screen chart in an
+///    [InteractiveViewer] (pinch-zoom + pan). A floating mini FAB expands
+///    upward into pill-shaped graph-type buttons.
 class CompareScreen extends ConsumerStatefulWidget {
   const CompareScreen({super.key});
 
@@ -82,7 +85,10 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
 
     result.fold(
       onSuccess: (r) => setState(() => _results = r.sessions),
-      onFailure: (e) => setState(() => _error = e.message),
+      onFailure: (e) => setState(() {
+        _error = e.message;
+        _results = null;
+      }),
     );
   }
 
@@ -93,10 +99,25 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
   @override
   Widget build(BuildContext context) {
     final sessionsAsync = ref.watch(sessionsProvider);
+    final showingChart = _results != null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Compare Sessions')),
-      floatingActionButton: _results != null ? _buildFab() : null,
+      appBar: AppBar(
+        title: Text(showingChart ? _activeGraph.label : 'Compare Sessions'),
+        actions: showingChart
+            ? [
+                TextButton.icon(
+                  onPressed: () => setState(() {
+                    _results = null;
+                    _graphMenuOpen = false;
+                  }),
+                  icon: const Icon(Icons.group, size: 16, color: Colors.white),
+                  label: const Text('Sessions',
+                      style: TextStyle(color: Colors.white, fontSize: 12)),
+                ),
+              ]
+            : null,
+      ),
       body: sessionsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorBanner(message: e.toString()),
@@ -105,25 +126,20 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
     );
   }
 
-  // ── FAB ───────────────────────────────────────────────────────────────────
-
-  Widget _buildFab() {
-    return FloatingActionButton(
-      mini: true,
-      onPressed: () => setState(() => _graphMenuOpen = !_graphMenuOpen),
-      backgroundColor: const Color(0xFF1F2937),
-      tooltip: 'Switch graph',
-      child: Icon(
-        _graphMenuOpen ? Icons.close : Icons.stacked_bar_chart,
-        color: Colors.white,
-        size: 20,
-      ),
-    );
-  }
-
-  // ── Body ──────────────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // Body router
+  // ---------------------------------------------------------------------------
 
   Widget _buildBody(List<Session> sessions) {
+    if (_results != null) return _buildChartView();
+    return _buildSelectorView(sessions);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Selector view
+  // ---------------------------------------------------------------------------
+
+  Widget _buildSelectorView(List<Session> sessions) {
     final analyzed = sessions.where((s) => s.analyzed).toList();
 
     if (analyzed.isEmpty) {
@@ -145,12 +161,69 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
             onDismiss: () => setState(() => _error = null),
           ),
 
-        // ── Session selector ────────────────────────────────────────────────
-        _buildSessionSelector(analyzed),
-
-        // ── Compare button ──────────────────────────────────────────────────
+        // ── Label ────────────────────────────────────────────────────────────
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Row(children: [
+            const Expanded(
+              child: Text('Select 2–3 sessions to compare:',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+            ),
+            if (_selectedIds.isNotEmpty)
+              Text('${_selectedIds.length} selected',
+                  style: const TextStyle(
+                      fontSize: 12, color: Color(0xFFF97316))),
+          ]),
+        ),
+
+        // ── Scrollable session list — capped at 280 px ────────────────────
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 280),
+          child: SingleChildScrollView(
+            child: Column(
+              children: analyzed.map((session) {
+                final isSelected = _selectedIds.contains(session.id);
+                final isDisabled =
+                    !isSelected && _selectedIds.length >= 3;
+                final colorIndex = _selectedIds
+                    .toList()
+                    .indexOf(session.id)
+                    .clamp(0, 2);
+                return CheckboxListTile(
+                  dense: true,
+                  title: Text(session.name,
+                      style: const TextStyle(fontSize: 13)),
+                  subtitle: Text(session.bikeSlug,
+                      style: const TextStyle(fontSize: 11)),
+                  secondary: isSelected
+                      ? Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: _sessionColors[colorIndex],
+                            shape: BoxShape.circle,
+                          ),
+                        )
+                      : null,
+                  value: isSelected,
+                  onChanged: isDisabled
+                      ? null
+                      : (v) => setState(() {
+                            if (v == true) {
+                              _selectedIds.add(session.id);
+                            } else {
+                              _selectedIds.remove(session.id);
+                            }
+                          }),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+
+        // ── Compare button ────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -172,126 +245,115 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
           ),
         ),
 
-        // ── Chart area (or placeholder) ─────────────────────────────────────
-        if (_results != null)
-          Expanded(child: _buildChartArea())
-        else
-          const Expanded(
-            child: Center(
-              child: Text(
-                'Select 2–3 sessions and press Compare',
-                style: TextStyle(color: Color(0xFF9CA3AF)),
-              ),
+        const Expanded(
+          child: Center(
+            child: Text(
+              'Select sessions above, then press Compare',
+              style: TextStyle(color: Color(0xFF9CA3AF)),
             ),
           ),
+        ),
       ],
     );
   }
 
-  // ── Session selector ──────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // Full-screen chart view
+  // ---------------------------------------------------------------------------
 
-  Widget _buildSessionSelector(List<Session> analyzed) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Select 2–3 sessions to compare:',
-            style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-          ),
-          const SizedBox(height: 4),
-          ...analyzed.asMap().entries.map((e) {
-            final session = e.value;
-            final isSelected = _selectedIds.contains(session.id);
-            final isDisabled = !isSelected && _selectedIds.length >= 3;
-            final colorIndex =
-                _selectedIds.toList().indexOf(session.id).clamp(0, 2);
-            return CheckboxListTile(
-              dense: true,
-              title: Text(session.name,
-                  style: const TextStyle(fontSize: 13)),
-              subtitle: Text(session.bikeSlug,
-                  style: const TextStyle(fontSize: 11)),
-              secondary: isSelected
-                  ? Container(
-                      width: 14,
-                      height: 14,
-                      decoration: BoxDecoration(
-                        color: _sessionColors[colorIndex],
-                        shape: BoxShape.circle,
-                      ),
-                    )
-                  : null,
-              value: isSelected,
-              onChanged: isDisabled
-                  ? null
-                  : (v) => setState(() {
-                        if (v == true) {
-                          _selectedIds.add(session.id);
-                        } else {
-                          _selectedIds.remove(session.id);
-                        }
-                        _results = null;
-                      }),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  // ── Chart area ────────────────────────────────────────────────────────────
-
-  Widget _buildChartArea() {
-    return Column(
+  Widget _buildChartView() {
+    return Stack(
       children: [
-        // ── Graph title + per-session stats ─────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _activeGraph.label,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-              const SizedBox(height: 4),
-              _buildStatsRow(),
-            ],
-          ),
-        ),
-
-        // ── Focused chart with gesture support ──────────────────────────────
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
-            child: InteractiveViewer(
+        // ── Full-screen chart ───────────────────────────────────────────────
+        Positioned.fill(
+          child: LayoutBuilder(
+            builder: (ctx, c) => InteractiveViewer(
               scaleEnabled: true,
               panEnabled: true,
               minScale: 0.5,
               maxScale: 6.0,
               boundaryMargin: const EdgeInsets.all(40),
-              child: _buildActiveChart(),
+              child: SizedBox(
+                width: c.maxWidth,
+                height: c.maxHeight,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 52, 8, 8),
+                  child: _buildActiveChart(),
+                ),
+              ),
             ),
           ),
         ),
 
-        // ── Collapsible graph-type menu ──────────────────────────────────────
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeInOut,
-          height: _graphMenuOpen ? 138 : 0,
-          child: _graphMenuOpen
-              ? _buildGraphMenu()
-              : const SizedBox.shrink(),
+        // ── Stats overlay (semi-transparent top bar) ────────────────────────
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: Container(
+            color: Colors.black.withOpacity(0.55),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: _buildStatsRow(),
+          ),
+        ),
+
+        // ── Backdrop — closes menu when tapping elsewhere ───────────────────
+        if (_graphMenuOpen)
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => _graphMenuOpen = false),
+              child: const ColoredBox(color: Color(0x44000000)),
+            ),
+          ),
+
+        // ── Floating graph-type menu (grows upward from FAB) ────────────────
+        if (_graphMenuOpen)
+          Positioned(
+            bottom: 72,
+            right: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: _GraphType.values
+                  .map((g) => _GraphPill(
+                        icon: g.icon,
+                        label: g.label,
+                        isActive: _activeGraph == g,
+                        onTap: () => setState(() {
+                          _activeGraph = g;
+                          _graphMenuOpen = false;
+                        }),
+                      ))
+                  .toList(),
+            ),
+          ),
+
+        // ── FAB ──────────────────────────────────────────────────────────────
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: FloatingActionButton(
+            mini: true,
+            onPressed: () =>
+                setState(() => _graphMenuOpen = !_graphMenuOpen),
+            backgroundColor: const Color(0xFF1F2937),
+            tooltip: 'Switch graph',
+            child: Icon(
+              _graphMenuOpen ? Icons.close : Icons.stacked_bar_chart,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
         ),
       ],
     );
   }
 
-  // ── Stats row (key metrics per session) ───────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // Stats row
+  // ---------------------------------------------------------------------------
 
   Widget _buildStatsRow() {
     final results = _results!;
@@ -320,19 +382,19 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
               'C ${d.compressionAreaPct.toStringAsFixed(0)}%  R ${d.reboundAreaPct.toStringAsFixed(0)}%  HS-C ${d.hsCompressionPct.toStringAsFixed(1)}%';
       }
       children.add(Padding(
-        padding: const EdgeInsets.only(right: 16),
+        padding: const EdgeInsets.only(right: 14),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-                width: 8,
-                height: 8,
+                width: 7,
+                height: 7,
                 decoration:
                     BoxDecoration(color: color, shape: BoxShape.circle)),
             const SizedBox(width: 4),
             Text(stats,
                 style: const TextStyle(
-                    fontSize: 11, color: Color(0xFF6B7280))),
+                    fontSize: 11, color: Colors.white70)),
           ],
         ),
       ));
@@ -344,12 +406,15 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
     );
   }
 
-  // ── Active chart ──────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // Active chart
+  // ---------------------------------------------------------------------------
 
   Widget _buildActiveChart() {
     final results = _results!;
 
-    CompareSeriesData _series(int i, List<double> bins, List<double> values) =>
+    // Builds a [CompareSeriesData] for session at [i] using [values] as bin data.
+    CompareSeriesData buildSeries(int i, List<double> values) =>
         CompareSeriesData(
           label: results[i].sessionName,
           color: _sessionColors[i.clamp(0, 2)],
@@ -362,7 +427,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
         return CompareHistogramChart(
           binCenters: bins,
           series: List.generate(results.length,
-              (i) => _series(i, bins, results[i].result.frontTravel.timePct)),
+              (i) => buildSeries(i, results[i].result.frontTravel.timePct)),
           xAxisLabel: 'Travel (%)',
           yAxisLabel: 'Time (%)',
           referenceLines: _travelReferenceLines(),
@@ -373,7 +438,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
         return CompareHistogramChart(
           binCenters: bins,
           series: List.generate(results.length,
-              (i) => _series(i, bins, results[i].result.rearTravel.timePct)),
+              (i) => buildSeries(i, results[i].result.rearTravel.timePct)),
           xAxisLabel: 'Travel (%)',
           yAxisLabel: 'Time (%)',
           referenceLines: _travelReferenceLines(),
@@ -386,7 +451,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
           series: List.generate(
               results.length,
               (i) =>
-                  _series(i, bins, results[i].result.frontVelocity.timePct)),
+                  buildSeries(i, results[i].result.frontVelocity.timePct)),
           xAxisLabel: 'Velocity (mm/s)',
           yAxisLabel: 'Time (%)',
           referenceLines: _velocityReferenceLines(),
@@ -399,7 +464,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
           series: List.generate(
               results.length,
               (i) =>
-                  _series(i, bins, results[i].result.rearVelocity.timePct)),
+                  buildSeries(i, results[i].result.rearVelocity.timePct)),
           xAxisLabel: 'Velocity (mm/s)',
           yAxisLabel: 'Time (%)',
           referenceLines: _velocityReferenceLines(),
@@ -407,7 +472,9 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
     }
   }
 
-  // ── Reference lines ───────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // Reference lines
+  // ---------------------------------------------------------------------------
 
   List<VerticalLine> _travelReferenceLines() => [
         VerticalLine(
@@ -437,10 +504,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
   List<VerticalLine> _velocityReferenceLines() {
     const ls = 150.0;
     return [
-      VerticalLine(
-          x: 0,
-          color: Colors.grey,
-          strokeWidth: 1.2),
+      VerticalLine(x: 0, color: Colors.grey, strokeWidth: 1.2),
       VerticalLine(
         x: ls,
         color: Colors.blue,
@@ -465,115 +529,61 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
       ),
     ];
   }
-
-  // ── Bottom graph-type menu ────────────────────────────────────────────────
-
-  Widget _buildGraphMenu() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: Colors.grey.shade300),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle
-          Container(
-            margin: const EdgeInsets.only(top: 8, bottom: 4),
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade400,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          // Graph options (horizontal scroll)
-          Expanded(
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              children: _GraphType.values
-                  .map((g) => Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: _GraphMenuCard(
-                          type: g,
-                          isActive: _activeGraph == g,
-                          onTap: () => setState(() {
-                            _activeGraph = g;
-                            _graphMenuOpen = false;
-                          }),
-                        ),
-                      ))
-                  .toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ---------------------------------------------------------------------------
-// Graph-type menu card
+// Floating graph-type pill button
 // ---------------------------------------------------------------------------
 
-class _GraphMenuCard extends StatelessWidget {
-  const _GraphMenuCard({
-    required this.type,
+class _GraphPill extends StatelessWidget {
+  const _GraphPill({
+    required this.icon,
+    required this.label,
     required this.isActive,
     required this.onTap,
   });
 
-  final _GraphType type;
+  final IconData icon;
+  final String label;
   final bool isActive;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    const activeColor = Color(0xFFF97316);
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: 96,
-        height: 80,
-        decoration: BoxDecoration(
-          color: isActive ? activeColor : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isActive ? activeColor : Colors.grey.shade300,
-            width: 1.5,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              type.icon,
-              size: 24,
-              color: isActive ? Colors.white : Colors.grey.shade600,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              type.label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight:
-                    isActive ? FontWeight.bold : FontWeight.normal,
-                color: isActive ? Colors.white : Colors.grey.shade700,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: isActive
+                ? const Color(0xFFF97316)
+                : Colors.grey.shade900,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.35),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: Colors.white),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
         ),
       ),
     );

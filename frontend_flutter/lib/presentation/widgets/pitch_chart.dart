@@ -7,10 +7,19 @@ import '../../domain/entities/analysis_result.dart';
 /// over time. Two vertically-stacked sub-charts share the same time axis,
 /// mirroring the React PitchChart component.
 class PitchChart extends StatelessWidget {
-  const PitchChart({super.key, required this.data, required this.title});
+  const PitchChart({
+    super.key,
+    required this.data,
+    required this.title,
+    this.subChartHeight = 120,
+  });
 
   final PitchTrace data;
   final String title;
+
+  /// Height of each of the two sub-charts (pitch and accel).  Pass a value
+  /// derived from [LayoutBuilder] constraints when using this chart full-screen.
+  final double subChartHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -45,19 +54,22 @@ class PitchChart extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Wrap(spacing: 16, runSpacing: 2, children: [
-              _stat(context, 'Peak pitch', '${maxPitch.toStringAsFixed(1)}°'),
-              _stat(context, 'Min pitch', '${minPitch.toStringAsFixed(1)}°'),
-              _stat(context, 'Peak accel', '${maxAccel.toStringAsFixed(2)} g'),
-              _stat(context, 'Min accel', '${minAccel.toStringAsFixed(2)} g'),
-            ]),
-            const SizedBox(height: 12),
+            if (title.isNotEmpty) ...[
+              Text(title, style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 4),
+            ],
+            if (title.isNotEmpty)
+              Wrap(spacing: 16, runSpacing: 2, children: [
+                _stat(context, 'Peak pitch', '${maxPitch.toStringAsFixed(1)}°'),
+                _stat(context, 'Min pitch', '${minPitch.toStringAsFixed(1)}°'),
+                _stat(context, 'Peak accel', '${maxAccel.toStringAsFixed(2)} g'),
+                _stat(context, 'Min accel', '${minAccel.toStringAsFixed(2)} g'),
+              ]),
+            if (title.isNotEmpty) const SizedBox(height: 12),
 
             // ── Pitch sub-chart ──────────────────────────────────────────
             SizedBox(
-              height: 120,
+              height: subChartHeight,
               child: _lineChart(
                 times: times,
                 values: pitches,
@@ -70,7 +82,7 @@ class PitchChart extends StatelessWidget {
 
             // ── Accel X sub-chart ────────────────────────────────────────
             SizedBox(
-              height: 120,
+              height: subChartHeight,
               child: _lineChart(
                 times: times,
                 values: accels,

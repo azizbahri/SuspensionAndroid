@@ -4,16 +4,48 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/entities/analysis_result.dart';
 import '../../../domain/entities/session.dart';
 import '../../providers/providers.dart';
-import '../../widgets/chart_detail_panel.dart';
-import '../../widgets/diagnostic_card.dart';
 import '../../widgets/error_banner.dart';
 import '../../widgets/pitch_chart.dart';
 import '../../widgets/travel_histogram_chart.dart';
 import '../../widgets/velocity_histogram_chart.dart';
 
-/// Screen for analyzing a session and displaying results.
+// ---------------------------------------------------------------------------
+// Graph-type enum
+// ---------------------------------------------------------------------------
+
+enum _AnalyzeGraph {
+  frontTravel,
+  rearTravel,
+  frontVelocity,
+  rearVelocity,
+  pitch;
+
+  String get label => switch (this) {
+        frontTravel => 'Front Travel',
+        rearTravel => 'Rear Travel',
+        frontVelocity => 'Front Velocity',
+        rearVelocity => 'Rear Velocity',
+        pitch => 'Pitch & Accel',
+      };
+
+  IconData get icon => switch (this) {
+        frontTravel || rearTravel => Icons.stacked_bar_chart,
+        frontVelocity || rearVelocity => Icons.speed,
+        pitch => Icons.show_chart,
+      };
+}
+
+// ---------------------------------------------------------------------------
+// Screen
+// ---------------------------------------------------------------------------
+
+/// Analyze a single session and display full-screen charts.
 ///
-/// Supports preselection via URL parameter ?session=<id>.
+/// Two modes:
+///  - **Selector view** (no result yet): session dropdown + Analyze button.
+///  - **Chart view** (result available): single full-screen chart in an
+///    [InteractiveViewer] (pinch-zoom + pan).  A floating mini FAB expands
+///    upward into pill-shaped graph-type buttons (5 types).
 class AnalyzeScreen extends ConsumerStatefulWidget {
   const AnalyzeScreen({super.key, this.preselectedSessionId});
 
@@ -29,8 +61,8 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen> {
   String? _error;
   AnalysisResult? _result;
 
-  /// Which chart is currently selected (drives the detail panel).
-  ChartKey? _selectedChart;
+  _AnalyzeGraph _activeGraph = _AnalyzeGraph.frontTravel;
+  bool _graphMenuOpen = false;
 
   @override
   void initState() {
@@ -41,9 +73,7 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen> {
   Session? _findSession(List<Session> sessions) =>
       _selectedSessionId == null
           ? null
-          : sessions
-              .where((s) => s.id == _selectedSessionId)
-              .firstOrNull;
+          : sessions.where((s) => s.id == _selectedSessionId).firstOrNull;
 
   Future<void> _analyze(Session session) async {
     setState(() {
@@ -61,67 +91,63 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen> {
         setState(() => _result = r);
         ref.invalidate(sessionsProvider);
       },
-      onFailure: (e) => setState(() => _error = e.message),
+      onFailure: (e) => setState(() {
+        _error = e.message;
+        _result = null;
+      }),
     );
   }
 
-  void _toggleChart(ChartKey key) {
-    setState(() => _selectedChart = _selectedChart == key ? null : key);
-  }
-
-  void _closePanel() => setState(() => _selectedChart = null);
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     final sessionsAsync = ref.watch(sessionsProvider);
-    final showPanel = _selectedChart != null && _result != null;
+    final showingChart = _result != null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Analyze')),
+      appBar: AppBar(
+        title: Text(showingChart ? _activeGraph.label : 'Analyze'),
+        actions: showingChart
+            ? [
+                TextButton.icon(
+                  onPressed: () => setState(() {
+                    _result = null;
+                    _graphMenuOpen = false;
+                  }),
+                  icon: const Icon(Icons.person, size: 16,
+                      color: Colors.white),
+                  label: const Text('Session',
+                      style:
+                          TextStyle(color: Colors.white, fontSize: 12)),
+                ),
+              ]
+            : null,
+      ),
       body: sessionsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorBanner(message: e.toString()),
-        data: (sessions) => Stack(
-          children: [
-            // ── Main scrollable content ───────────────────────────────────
-            Positioned.fill(
-              child: _buildBody(sessions),
-            ),
-
-            // ── Backdrop: tap outside panel to close ──────────────────────
-            if (showPanel)
-              Positioned.fill(
-                child: GestureDetector(
-                  onTap: _closePanel,
-                  behavior: HitTestBehavior.opaque,
-                  child: const ColoredBox(color: Color(0x33000000)),
-                ),
-              ),
-
-            // ── Sliding detail panel from the right ────────────────────────
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              top: 0,
-              bottom: 0,
-              right: showPanel ? 0 : -340,
-              width: 320,
-              child: showPanel
-                  ? ChartDetailPanel(
-                      key: ValueKey(_selectedChart),
-                      chartKey: _selectedChart!,
-                      result: _result!,
-                      onClose: _closePanel,
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ],
-        ),
+        data: _buildBody,
       ),
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Body router
+  // ---------------------------------------------------------------------------
+
   Widget _buildBody(List<Session> sessions) {
+    if (_result != null) return _buildChartView();
+    return _buildSelectorView(sessions);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Selector view
+  // ---------------------------------------------------------------------------
+
+  Widget _buildSelectorView(List<Session> sessions) {
     final session = _findSession(sessions);
 
     return SingleChildScrollView(
@@ -133,8 +159,9 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen> {
             onDismiss: () => setState(() => _error = null),
           ),
 
-        // Session selector
-        const Text('Session'),
+        // Session dropdown
+        const Text('Session',
+            style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
           key: const Key('session_dropdown'),
@@ -144,14 +171,14 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen> {
               border: OutlineInputBorder(), isDense: true),
           items: sessions
               .map((s) => DropdownMenuItem(
-                  value: s.id,
-                  child: Text('${s.name} ${s.analyzed ? "✓" : ""}',
-                      overflow: TextOverflow.ellipsis)))
+                    value: s.id,
+                    child: Text('${s.name} ${s.analyzed ? "✓" : ""}',
+                        overflow: TextOverflow.ellipsis),
+                  ))
               .toList(),
           onChanged: (id) => setState(() {
             _selectedSessionId = id;
             _result = null;
-            _selectedChart = null;
           }),
         ),
         const SizedBox(height: 12),
@@ -176,160 +203,259 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen> {
                 : const Text('Analyze / Re-analyze'),
           ),
         ),
-
-        // Results
-        if (_result != null) ...[
-          const SizedBox(height: 16),
-          _ResultsSection(
-            result: _result!,
-            selectedChart: _selectedChart,
-            onChartTap: _toggleChart,
-          ),
-        ],
       ]),
     );
   }
-}
 
-// ---------------------------------------------------------------------------
-// Results section
-// ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // Full-screen chart view
+  // ---------------------------------------------------------------------------
 
-class _ResultsSection extends StatelessWidget {
-  const _ResultsSection({
-    required this.result,
-    required this.selectedChart,
-    required this.onChartTap,
-  });
-
-  final AnalysisResult result;
-  final ChartKey? selectedChart;
-  final ValueChanged<ChartKey> onChartTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final sorted = [...result.diagnostics]..sort((a, b) {
-        const order = {
-          DiagnosticSeverity.critical: 0,
-          DiagnosticSeverity.warning: 1,
-          DiagnosticSeverity.info: 2,
-        };
-        return order[a.severity]!.compareTo(order[b.severity]!);
-      });
-
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Front Suspension',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      _tappableChart(
-        ChartKey.frontTravel,
-        TravelHistogramChart(
-            data: result.frontTravel, title: 'Travel Distribution'),
-      ),
-      _tappableChart(
-        ChartKey.frontVelocity,
-        VelocityHistogramChart(
-            data: result.frontVelocity, title: 'Velocity Distribution'),
-      ),
-
-      const SizedBox(height: 12),
-      const Text('Rear Suspension',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      _tappableChart(
-        ChartKey.rearTravel,
-        TravelHistogramChart(
-            data: result.rearTravel, title: 'Travel Distribution'),
-      ),
-      _tappableChart(
-        ChartKey.rearVelocity,
-        VelocityHistogramChart(
-            data: result.rearVelocity, title: 'Velocity Distribution'),
-      ),
-
-      const SizedBox(height: 12),
-      _tappableChart(
-        ChartKey.pitch,
-        PitchChart(
-          data: result.pitch,
-          title: 'Pitch & Acceleration Trace',
-        ),
-      ),
-
-      if (sorted.isNotEmpty) ...[
-        const SizedBox(height: 12),
-        const Text('Diagnostics',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        ...sorted.map((note) => DiagnosticCard(note: note)),
-      ],
-
-      const SizedBox(height: 12),
-      _Footer(result: result),
-    ]);
-  }
-
-  Widget _tappableChart(ChartKey key, Widget chart) {
-    final isSelected = selectedChart == key;
-    return GestureDetector(
-      onTap: () => onChartTap(key),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.only(bottom: 4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected
-                ? const Color(0xFFF97316)
-                : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: Stack(
-          children: [
-            chart,
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Tooltip(
-                message: 'Tap for chart details',
-                child: Icon(
-                  Icons.info_outline,
-                  size: 16,
-                  color: isSelected
-                      ? const Color(0xFFF97316)
-                      : Colors.grey.shade400,
+  Widget _buildChartView() {
+    return Stack(
+      children: [
+        // ── Full-screen chart ─────────────────────────────────────────────────
+        Positioned.fill(
+          child: LayoutBuilder(
+            builder: (ctx, c) => InteractiveViewer(
+              scaleEnabled: true,
+              panEnabled: true,
+              minScale: 0.5,
+              maxScale: 6.0,
+              boundaryMargin: const EdgeInsets.all(40),
+              child: SizedBox(
+                width: c.maxWidth,
+                height: c.maxHeight,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 52, 8, 8),
+                  child: _buildActiveChart(c.maxHeight),
                 ),
               ),
             ),
-          ],
+          ),
+        ),
+
+        // ── Stats overlay (semi-transparent top bar) ──────────────────────────
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: Container(
+            color: Colors.black.withOpacity(0.55),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Text(
+              _buildStatsString(),
+              style:
+                  const TextStyle(fontSize: 11, color: Colors.white70),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+
+        // ── Backdrop — closes menu when tapping elsewhere ──────────────────────
+        if (_graphMenuOpen)
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => _graphMenuOpen = false),
+              child: const ColoredBox(color: Color(0x44000000)),
+            ),
+          ),
+
+        // ── Floating graph-type menu (grows upward from FAB) ──────────────────
+        if (_graphMenuOpen)
+          Positioned(
+            bottom: 72,
+            right: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: _AnalyzeGraph.values
+                  .map((g) => _GraphPill(
+                        icon: g.icon,
+                        label: g.label,
+                        isActive: _activeGraph == g,
+                        onTap: () => setState(() {
+                          _activeGraph = g;
+                          _graphMenuOpen = false;
+                        }),
+                      ))
+                  .toList(),
+            ),
+          ),
+
+        // ── FAB ───────────────────────────────────────────────────────────────
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: FloatingActionButton(
+            mini: true,
+            onPressed: () =>
+                setState(() => _graphMenuOpen = !_graphMenuOpen),
+            backgroundColor: const Color(0xFF1F2937),
+            tooltip: 'Switch graph',
+            child: Icon(
+              _graphMenuOpen ? Icons.close : Icons.stacked_bar_chart,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Stats string for overlay
+  // ---------------------------------------------------------------------------
+
+  String _buildStatsString() {
+    final r = _result!;
+    return switch (_activeGraph) {
+      _AnalyzeGraph.frontTravel => () {
+          final d = r.frontTravel;
+          return 'Peak: ${d.peakCenterPct.toStringAsFixed(1)}%'
+              '   >80%: ${d.pctAbove80.toStringAsFixed(1)}%';
+        }(),
+      _AnalyzeGraph.rearTravel => () {
+          final d = r.rearTravel;
+          return 'Peak: ${d.peakCenterPct.toStringAsFixed(1)}%'
+              '   >80%: ${d.pctAbove80.toStringAsFixed(1)}%';
+        }(),
+      _AnalyzeGraph.frontVelocity => () {
+          final d = r.frontVelocity;
+          return 'C: ${d.compressionAreaPct.toStringAsFixed(0)}%'
+              '  R: ${d.reboundAreaPct.toStringAsFixed(0)}%'
+              '  LS-C: ${d.lsCompressionPct.toStringAsFixed(1)}%'
+              '  HS-C: ${d.hsCompressionPct.toStringAsFixed(1)}%'
+              '  LS-R: ${d.lsReboundPct.toStringAsFixed(1)}%'
+              '  HS-R: ${d.hsReboundPct.toStringAsFixed(1)}%';
+        }(),
+      _AnalyzeGraph.rearVelocity => () {
+          final d = r.rearVelocity;
+          return 'C: ${d.compressionAreaPct.toStringAsFixed(0)}%'
+              '  R: ${d.reboundAreaPct.toStringAsFixed(0)}%'
+              '  LS-C: ${d.lsCompressionPct.toStringAsFixed(1)}%'
+              '  HS-C: ${d.hsCompressionPct.toStringAsFixed(1)}%'
+              '  LS-R: ${d.lsReboundPct.toStringAsFixed(1)}%'
+              '  HS-R: ${d.hsReboundPct.toStringAsFixed(1)}%';
+        }(),
+      _AnalyzeGraph.pitch => () {
+          final d = r.pitch;
+          if (d.pitchDeg.isEmpty) return '';
+          final maxP = d.pitchDeg.reduce((a, b) => a > b ? a : b);
+          final minP = d.pitchDeg.reduce((a, b) => a < b ? a : b);
+          final maxA = d.accelXG.reduce((a, b) => a > b ? a : b);
+          final minA = d.accelXG.reduce((a, b) => a < b ? a : b);
+          return 'Max pitch: ${maxP.toStringAsFixed(1)}°'
+              '  Min: ${minP.toStringAsFixed(1)}°'
+              '  Peak accel: ${maxA.toStringAsFixed(2)} g'
+              '  Min: ${minA.toStringAsFixed(2)} g';
+        }(),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Active chart — height-aware so it fills the screen
+  // ---------------------------------------------------------------------------
+
+  Widget _buildActiveChart(double availableHeight) {
+    // Card vertical padding (16 top + 16 bottom) = 32 px.
+    // Stats row (~24 px) + SizedBox(8) above chart = 32 px overhead.
+    // When title is '' those are not rendered; net overhead ≈ 64 px.
+    const histogramOverhead = 64.0;
+    // Pitch: Card padding (32) + spacing between sub-charts (8) = 40 px.
+    const pitchOverhead = 40.0;
+
+    final r = _result!;
+    return switch (_activeGraph) {
+      _AnalyzeGraph.frontTravel => TravelHistogramChart(
+          data: r.frontTravel,
+          title: '',
+          chartHeight: (availableHeight - histogramOverhead).clamp(100.0, double.infinity),
+        ),
+      _AnalyzeGraph.rearTravel => TravelHistogramChart(
+          data: r.rearTravel,
+          title: '',
+          chartHeight: (availableHeight - histogramOverhead).clamp(100.0, double.infinity),
+        ),
+      _AnalyzeGraph.frontVelocity => VelocityHistogramChart(
+          data: r.frontVelocity,
+          title: '',
+          chartHeight: (availableHeight - histogramOverhead).clamp(100.0, double.infinity),
+        ),
+      _AnalyzeGraph.rearVelocity => VelocityHistogramChart(
+          data: r.rearVelocity,
+          title: '',
+          chartHeight: (availableHeight - histogramOverhead).clamp(100.0, double.infinity),
+        ),
+      _AnalyzeGraph.pitch => PitchChart(
+          data: r.pitch,
+          title: '',
+          subChartHeight:
+              ((availableHeight - pitchOverhead) / 2).clamp(60.0, double.infinity),
+        ),
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Floating graph-type pill button (shared style with compare screen)
+// ---------------------------------------------------------------------------
+
+class _GraphPill extends StatelessWidget {
+  const _GraphPill({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: isActive
+                ? const Color(0xFFF97316)
+                : Colors.grey.shade900,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.35),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: Colors.white),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-}
-
-// ---------------------------------------------------------------------------
-// Footer
-// ---------------------------------------------------------------------------
-
-class _Footer extends StatelessWidget {
-  const _Footer({required this.result});
-  final AnalysisResult result;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Duration: ${result.durationS.toStringAsFixed(1)} s',
-                style: const TextStyle(fontSize: 12)),
-            Text('Samples: ${result.sampleCount}',
-                style: const TextStyle(fontSize: 12)),
-          ],
-        ),
-      );
 }
 

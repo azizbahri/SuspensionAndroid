@@ -14,11 +14,16 @@ class VelocityHistogramChart extends StatelessWidget {
     required this.data,
     required this.title,
     this.lsThresholdMmS = 150.0,
+    this.chartHeight = 210,
   });
 
   final VelocityHistogram data;
   final String title;
   final double lsThresholdMmS;
+
+  /// Height of the inner BarChart widget.  Pass a value derived from
+  /// [LayoutBuilder] constraints when using this chart full-screen.
+  final double chartHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -28,8 +33,10 @@ class VelocityHistogramChart extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 4),
+            if (title.isNotEmpty) ...[
+              Text(title, style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 4),
+            ],
             Wrap(spacing: 12, children: [
               _stat(context, 'Comp',
                   FormatUtils.formatPct(data.compressionAreaPct)),
@@ -42,7 +49,7 @@ class VelocityHistogramChart extends StatelessWidget {
             ]),
             const SizedBox(height: 8),
             SizedBox(
-              height: 210,
+              height: chartHeight,
               child: BarChart(
                 BarChartData(
                   minY: 0,

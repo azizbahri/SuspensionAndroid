@@ -13,10 +13,15 @@ class TravelHistogramChart extends StatelessWidget {
     super.key,
     required this.data,
     required this.title,
+    this.chartHeight = 210,
   });
 
   final TravelHistogram data;
   final String title;
+
+  /// Height of the inner BarChart widget.  Pass a value derived from
+  /// [LayoutBuilder] constraints when using this chart full-screen.
+  final double chartHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -26,8 +31,10 @@ class TravelHistogramChart extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 4),
+            if (title.isNotEmpty) ...[
+              Text(title, style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 4),
+            ],
             Row(children: [
               _stat(context, 'Peak', FormatUtils.formatPct(data.peakCenterPct)),
               const SizedBox(width: 16),
@@ -36,7 +43,7 @@ class TravelHistogramChart extends StatelessWidget {
             ]),
             const SizedBox(height: 8),
             SizedBox(
-              height: 210,
+              height: chartHeight,
               child: BarChart(
                 BarChartData(
                   minY: 0,
