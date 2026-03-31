@@ -36,29 +36,65 @@ class TravelHistogramChart extends StatelessWidget {
             ]),
             const SizedBox(height: 8),
             SizedBox(
-              height: 180,
+              height: 210,
               child: BarChart(
                 BarChartData(
                   minY: 0,
+                  // Use actual travel-% values as x positions so reference
+                  // lines at 30 and 80 land on the correct bars.
                   barGroups: _buildBars(),
                   borderData: FlBorderData(show: false),
-                  gridData: const FlGridData(show: false),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    getDrawingHorizontalLine: (_) => FlLine(
+                      color: Colors.grey.shade200,
+                      strokeWidth: 1,
+                    ),
+                  ),
                   titlesData: FlTitlesData(
-                    leftTitles:
-                        const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles:
-                        const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles:
-                        const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    bottomTitles: AxisTitles(
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    // Y axis: Time (%)
+                    leftTitles: AxisTitles(
+                      axisNameWidget: const RotatedBox(
+                        quarterTurns: -1,
+                        child: Text('Time (%)',
+                            style: TextStyle(
+                                fontSize: 10, color: Color(0xFF6B7280))),
+                      ),
+                      axisNameSize: 18,
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 20,
+                        reservedSize: 32,
+                        getTitlesWidget: (value, meta) {
+                          if (value == meta.max) {
+                            return const SizedBox.shrink();
+                          }
+                          if (value % 5 != 0) return const SizedBox.shrink();
+                          return Text(
+                            '${value.toInt()}',
+                            style: const TextStyle(fontSize: 9),
+                          );
+                        },
+                      ),
+                    ),
+                    // X axis: Travel (%)
+                    bottomTitles: AxisTitles(
+                      axisNameWidget: const Text('Travel (%)',
+                          style: TextStyle(
+                              fontSize: 10, color: Color(0xFF6B7280))),
+                      axisNameSize: 18,
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 18,
                         getTitlesWidget: (value, meta) {
                           if (value % 20 != 0) return const SizedBox.shrink();
                           return Text(
                             '${value.toInt()}%',
-                            style: const TextStyle(fontSize: 10),
+                            style: const TextStyle(fontSize: 9),
                           );
                         },
                       ),
@@ -73,7 +109,8 @@ class TravelHistogramChart extends StatelessWidget {
                       label: VerticalLineLabel(
                         show: true,
                         labelResolver: (_) => 'Sag',
-                        style: const TextStyle(fontSize: 9, color: Colors.green),
+                        style:
+                            const TextStyle(fontSize: 9, color: Colors.green),
                       ),
                     ),
                     VerticalLine(
@@ -101,12 +138,13 @@ class TravelHistogramChart extends StatelessWidget {
     final groups = <BarChartGroupData>[];
     for (int i = 0; i < data.centersPct.length; i++) {
       groups.add(BarChartGroupData(
-        x: i,
+        // Use actual travel-% value so reference lines align correctly.
+        x: data.centersPct[i].round(),
         barRods: [
           BarChartRodData(
             toY: data.timePct[i],
-            color: Colors.orange,
-            width: 16,
+            color: const Color(0xFFF97316), // orange-500
+            width: 14,
             borderRadius: BorderRadius.zero,
           ),
         ],
@@ -126,3 +164,4 @@ class TravelHistogramChart extends StatelessWidget {
         ],
       );
 }
+

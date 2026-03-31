@@ -56,37 +56,27 @@ class PitchChart extends StatelessWidget {
             const SizedBox(height: 12),
 
             // ── Pitch sub-chart ──────────────────────────────────────────
-            _subChartLabel('Pitch (°)', const Color(0xFF3B82F6)),
             SizedBox(
-              height: 100,
+              height: 120,
               child: _lineChart(
                 times: times,
                 values: pitches,
                 color: const Color(0xFF3B82F6),
                 showBottomTitles: false,
+                yAxisLabel: 'Pitch (°)',
               ),
             ),
             const SizedBox(height: 8),
 
             // ── Accel X sub-chart ────────────────────────────────────────
-            _subChartLabel('Accel X (g)', const Color(0xFFF59E0B)),
             SizedBox(
-              height: 100,
+              height: 120,
               child: _lineChart(
                 times: times,
                 values: accels,
                 color: const Color(0xFFF59E0B),
                 showBottomTitles: true,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Center(
-              child: Text(
-                'Time (s)',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: Colors.grey),
+                yAxisLabel: 'Accel X (g)',
               ),
             ),
           ],
@@ -95,21 +85,12 @@ class PitchChart extends StatelessWidget {
     );
   }
 
-  Widget _subChartLabel(String label, Color color) => Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Row(children: [
-          Container(width: 14, height: 2, color: color),
-          const SizedBox(width: 6),
-          Text(label,
-              style: const TextStyle(fontSize: 11, color: Colors.grey)),
-        ]),
-      );
-
   Widget _lineChart({
     required List<double> times,
     required List<double> values,
     required Color color,
     required bool showBottomTitles,
+    required String yAxisLabel,
   }) {
     final spots = <FlSpot>[
       for (int i = 0; i < times.length; i++) FlSpot(times[i], values[i]),
@@ -146,13 +127,25 @@ class PitchChart extends StatelessWidget {
         ]),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
+            axisNameWidget: RotatedBox(
+              quarterTurns: -1,
+              child: Text(yAxisLabel,
+                  style: const TextStyle(
+                      fontSize: 9, color: Color(0xFF6B7280))),
+            ),
+            axisNameSize: 16,
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 36,
-              getTitlesWidget: (v, _) => Text(
-                v.toStringAsFixed(0),
-                style: const TextStyle(fontSize: 9),
-              ),
+              getTitlesWidget: (v, meta) {
+                if (v == meta.max || v == meta.min) {
+                  return const SizedBox.shrink();
+                }
+                return Text(
+                  v.toStringAsFixed(0),
+                  style: const TextStyle(fontSize: 9),
+                );
+              },
             ),
           ),
           rightTitles: const AxisTitles(
@@ -160,13 +153,24 @@ class PitchChart extends StatelessWidget {
           topTitles: const AxisTitles(
               sideTitles: SideTitles(showTitles: false)),
           bottomTitles: AxisTitles(
+            axisNameWidget: showBottomTitles
+                ? const Text('Time (s)',
+                    style: TextStyle(
+                        fontSize: 9, color: Color(0xFF6B7280)))
+                : null,
+            axisNameSize: showBottomTitles ? 16 : 0,
             sideTitles: SideTitles(
               showTitles: showBottomTitles,
               reservedSize: 18,
-              getTitlesWidget: (v, _) => Text(
-                v.toStringAsFixed(0),
-                style: const TextStyle(fontSize: 9),
-              ),
+              getTitlesWidget: (v, meta) {
+                if (v == meta.max || v == meta.min) {
+                  return const SizedBox.shrink();
+                }
+                return Text(
+                  v.toStringAsFixed(0),
+                  style: const TextStyle(fontSize: 9),
+                );
+              },
             ),
           ),
         ),

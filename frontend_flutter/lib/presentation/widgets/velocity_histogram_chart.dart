@@ -42,24 +42,60 @@ class VelocityHistogramChart extends StatelessWidget {
             ]),
             const SizedBox(height: 8),
             SizedBox(
-              height: 180,
+              height: 210,
               child: BarChart(
                 BarChartData(
                   minY: 0,
+                  // Use actual velocity values as x positions so reference
+                  // lines at 0 and ±150 mm/s land on the correct bins.
                   barGroups: _buildBars(),
                   borderData: FlBorderData(show: false),
-                  gridData: const FlGridData(show: false),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    getDrawingHorizontalLine: (_) => FlLine(
+                      color: Colors.grey.shade200,
+                      strokeWidth: 1,
+                    ),
+                  ),
                   titlesData: FlTitlesData(
-                    leftTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
                     rightTitles: const AxisTitles(
                         sideTitles: SideTitles(showTitles: false)),
                     topTitles: const AxisTitles(
                         sideTitles: SideTitles(showTitles: false)),
-                    bottomTitles: AxisTitles(
+                    // Y axis: Time (%)
+                    leftTitles: AxisTitles(
+                      axisNameWidget: const RotatedBox(
+                        quarterTurns: -1,
+                        child: Text('Time (%)',
+                            style: TextStyle(
+                                fontSize: 10, color: Color(0xFF6B7280))),
+                      ),
+                      axisNameSize: 18,
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 20,
+                        reservedSize: 32,
+                        getTitlesWidget: (value, meta) {
+                          if (value == meta.max) {
+                            return const SizedBox.shrink();
+                          }
+                          if (value % 5 != 0) return const SizedBox.shrink();
+                          return Text(
+                            '${value.toInt()}',
+                            style: const TextStyle(fontSize: 9),
+                          );
+                        },
+                      ),
+                    ),
+                    // X axis: Velocity (mm/s)
+                    bottomTitles: AxisTitles(
+                      axisNameWidget: const Text('Velocity (mm/s)',
+                          style: TextStyle(
+                              fontSize: 10, color: Color(0xFF6B7280))),
+                      axisNameSize: 18,
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 18,
                         getTitlesWidget: (value, meta) {
                           if (value % 500 != 0) return const SizedBox.shrink();
                           return Text(
@@ -71,17 +107,32 @@ class VelocityHistogramChart extends StatelessWidget {
                     ),
                   ),
                   extraLinesData: ExtraLinesData(verticalLines: [
-                    VerticalLine(x: 0, color: Colors.grey, strokeWidth: 1),
+                    VerticalLine(
+                        x: 0,
+                        color: Colors.grey.shade500,
+                        strokeWidth: 1),
                     VerticalLine(
                         x: lsThresholdMmS,
                         color: Colors.blue.withOpacity(0.5),
                         strokeWidth: 1,
-                        dashArray: [4, 4]),
+                        dashArray: [4, 4],
+                        label: VerticalLineLabel(
+                          show: true,
+                          labelResolver: (_) => 'LS|HS',
+                          style: const TextStyle(
+                              fontSize: 8, color: Color(0xFF6B7280)),
+                        )),
                     VerticalLine(
                         x: -lsThresholdMmS,
                         color: Colors.blue.withOpacity(0.5),
                         strokeWidth: 1,
-                        dashArray: [4, 4]),
+                        dashArray: [4, 4],
+                        label: VerticalLineLabel(
+                          show: true,
+                          labelResolver: (_) => 'LS|HS',
+                          style: const TextStyle(
+                              fontSize: 8, color: Color(0xFF6B7280)),
+                        )),
                   ]),
                 ),
               ),
@@ -98,7 +149,8 @@ class VelocityHistogramChart extends StatelessWidget {
       final center = data.centersMmS[i];
       final color = center < 0 ? Colors.red.shade400 : Colors.green.shade400;
       groups.add(BarChartGroupData(
-        x: i,
+        // Use actual velocity value so reference lines align correctly.
+        x: center.round(),
         barRods: [
           BarChartRodData(
             toY: data.timePct[i],
@@ -124,3 +176,4 @@ class VelocityHistogramChart extends StatelessWidget {
         ],
       );
 }
+
