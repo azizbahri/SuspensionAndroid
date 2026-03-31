@@ -72,8 +72,8 @@ class SignalFilter {
       return Float64List.fromList(signal);
     }
 
-    // Pad length: 3 × max(len(b), len(a)) matching scipy default.
-    final int padLen = 3 * math.max(b.length, a.length); // = 9 for order-2
+    // Pad length: 3 × (max(len(b), len(a)) - 1) matching scipy default.
+    final int padLen = 3 * (math.max(b.length, a.length) - 1); // = 6 for order-2
 
     if (n <= padLen) {
       // Signal too short to pad safely — return as-is.
@@ -83,14 +83,27 @@ class SignalFilter {
     // 1. Odd-reflection padding
     final padded = _padOdd(signal, padLen);
 
-    // 2. Forward pass
-    final forward = _applyIir(padded, b, a);
+    // 2. Forward pass with steady-state initialization at the left edge.
+    final zi = _initialStateForUnitStep(b, a);
+    final forward = _applyIir(
+      padded,
+      b,
+      a,
+      z0: zi[0] * padded.first,
+      z1: zi[1] * padded.first,
+    );
 
     // 3. Reverse
     final reversed = _reverse(forward);
 
-    // 4. Backward pass (= forward pass on reversed signal)
-    final backward = _applyIir(reversed, b, a);
+    // 4. Backward pass (= forward pass on reversed signal) with edge init.
+    final backward = _applyIir(
+      reversed,
+      b,
+      a,
+      z0: zi[0] * reversed.first,
+      z1: zi[1] * reversed.first,
+    );
 
     // 5. Reverse back
     final result = _reverse(backward);
@@ -107,16 +120,18 @@ class SignalFilter {
   ///
   /// Numerically stable for 2nd-order filters. Processes [x] using
   /// coefficients [b] (numerator) and [a] (denominator, a[0] == 1).
-  static Float64List _applyIir(Float64List x, Float64List b, Float64List a) {
+  static Float64List _applyIir(
+    Float64List x,
+    Float64List b,
+    Float64List a, {
+    double z0 = 0.0,
+    double z1 = 0.0,
+  }) {
     final n = x.length;
     final y = Float64List(n);
 
     final b0 = b[0], b1 = b[1], b2 = b[2];
     final a1 = a[1], a2 = a[2];
-
-    // Delay line state
-    var z0 = 0.0;
-    var z1 = 0.0;
 
     for (int i = 0; i < n; i++) {
       final xi = x[i];
@@ -126,6 +141,16 @@ class SignalFilter {
       y[i] = yi;
     }
     return y;
+  }
+
+  /// Steady-state DF2T delay line for a unit-step input.
+  ///
+  /// This mirrors scipy.signal.lfilter_zi behavior for a biquad with a[0] == 1.
+  static Float64List _initialStateForUnitStep(Float64List b, Float64List a) {
+    final zi = Float64List(2);
+    zi[0] = 1.0 - b[0];
+    zi[1] = b[2] - a[2];
+    return zi;
   }
 
   /// Create odd-reflection padding at both ends of [signal].

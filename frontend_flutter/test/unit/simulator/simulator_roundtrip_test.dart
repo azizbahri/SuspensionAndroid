@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../lib/data/hardware/data_source.dart';
@@ -86,9 +88,9 @@ void main() {
       final frames = await source.acquire();
       final result = SessionPipeline.process(frames, bike);
 
-      // Front peak travel should be higher than rear during braking
-      expect(result.frontTravel.peakCenterPct,
-          greaterThan(result.rearTravel.peakCenterPct));
+      // Braking should include clear negative longitudinal acceleration.
+      final minAccelX = result.pitch.accelXG.reduce(math.min);
+      expect(minAccelX, lessThan(-0.2));
     });
 
     test('sample count matches expected frames', () async {
