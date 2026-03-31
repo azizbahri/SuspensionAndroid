@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../domain/entities/analysis_result.dart';
 import '../../../domain/entities/session.dart';
 import '../../providers/providers.dart';
+import '../../widgets/chart_detail_panel.dart';
 import '../../widgets/diagnostic_card.dart';
 import '../../widgets/error_banner.dart';
+import '../../widgets/pitch_chart.dart';
 import '../../widgets/travel_histogram_chart.dart';
 import '../../widgets/velocity_histogram_chart.dart';
 
@@ -27,6 +28,9 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen> {
   bool _analyzing = false;
   String? _error;
   AnalysisResult? _result;
+
+  /// Which chart is currently selected (drives the detail panel).
+  ChartKey? _selectedChart;
 
   @override
   void initState() {
@@ -61,16 +65,58 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen> {
     );
   }
 
+  void _toggleChart(ChartKey key) {
+    setState(() => _selectedChart = _selectedChart == key ? null : key);
+  }
+
+  void _closePanel() => setState(() => _selectedChart = null);
+
   @override
   Widget build(BuildContext context) {
     final sessionsAsync = ref.watch(sessionsProvider);
+    final showPanel = _selectedChart != null && _result != null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Analyze')),
       body: sessionsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorBanner(message: e.toString()),
-        data: (sessions) => _buildBody(sessions),
+        data: (sessions) => Stack(
+          children: [
+            // ── Main scrollable content ───────────────────────────────────
+            Positioned.fill(
+              child: _buildBody(sessions),
+            ),
+
+            // ── Backdrop: tap outside panel to close ──────────────────────
+            if (showPanel)
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: _closePanel,
+                  behavior: HitTestBehavior.opaque,
+                  child: const ColoredBox(color: Color(0x33000000)),
+                ),
+              ),
+
+            // ── Sliding detail panel from the right ────────────────────────
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              top: 0,
+              bottom: 0,
+              right: showPanel ? 0 : -340,
+              width: 320,
+              child: showPanel
+                  ? ChartDetailPanel(
+                      key: ValueKey(_selectedChart),
+                      chartKey: _selectedChart!,
+                      result: _result!,
+                      onClose: _closePanel,
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -105,6 +151,7 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen> {
           onChanged: (id) => setState(() {
             _selectedSessionId = id;
             _result = null;
+            _selectedChart = null;
           }),
         ),
         const SizedBox(height: 12),
@@ -133,20 +180,34 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen> {
         // Results
         if (_result != null) ...[
           const SizedBox(height: 16),
-          _ResultsSection(result: _result!),
+          _ResultsSection(
+            result: _result!,
+            selectedChart: _selectedChart,
+            onChartTap: _toggleChart,
+          ),
         ],
       ]),
     );
   }
 }
 
+// ---------------------------------------------------------------------------
+// Results section
+// ---------------------------------------------------------------------------
+
 class _ResultsSection extends StatelessWidget {
-  const _ResultsSection({required this.result});
+  const _ResultsSection({
+    required this.result,
+    required this.selectedChart,
+    required this.onChartTap,
+  });
+
   final AnalysisResult result;
+  final ChartKey? selectedChart;
+  final ValueChanged<ChartKey> onChartTap;
 
   @override
   Widget build(BuildContext context) {
-    // Sort diagnostics: critical > warning > info
     final sorted = [...result.diagnostics]..sort((a, b) {
         const order = {
           DiagnosticSeverity.critical: 0,
@@ -159,16 +220,39 @@ class _ResultsSection extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('Front Suspension',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      TravelHistogramChart(data: result.frontTravel, title: 'Travel Distribution'),
-      VelocityHistogramChart(
-          data: result.frontVelocity, title: 'Velocity Distribution'),
+      _tappableChart(
+        ChartKey.frontTravel,
+        TravelHistogramChart(
+            data: result.frontTravel, title: 'Travel Distribution'),
+      ),
+      _tappableChart(
+        ChartKey.frontVelocity,
+        VelocityHistogramChart(
+            data: result.frontVelocity, title: 'Velocity Distribution'),
+      ),
 
       const SizedBox(height: 12),
       const Text('Rear Suspension',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      TravelHistogramChart(data: result.rearTravel, title: 'Travel Distribution'),
-      VelocityHistogramChart(
-          data: result.rearVelocity, title: 'Velocity Distribution'),
+      _tappableChart(
+        ChartKey.rearTravel,
+        TravelHistogramChart(
+            data: result.rearTravel, title: 'Travel Distribution'),
+      ),
+      _tappableChart(
+        ChartKey.rearVelocity,
+        VelocityHistogramChart(
+            data: result.rearVelocity, title: 'Velocity Distribution'),
+      ),
+
+      const SizedBox(height: 12),
+      _tappableChart(
+        ChartKey.pitch,
+        PitchChart(
+          data: result.pitch,
+          title: 'Pitch & Acceleration Trace',
+        ),
+      ),
 
       if (sorted.isNotEmpty) ...[
         const SizedBox(height: 12),
@@ -177,12 +261,54 @@ class _ResultsSection extends StatelessWidget {
         ...sorted.map((note) => DiagnosticCard(note: note)),
       ],
 
-      // Footer
       const SizedBox(height: 12),
       _Footer(result: result),
     ]);
   }
+
+  Widget _tappableChart(ChartKey key, Widget chart) {
+    final isSelected = selectedChart == key;
+    return GestureDetector(
+      onTap: () => onChartTap(key),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFFF97316)
+                : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Stack(
+          children: [
+            chart,
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Tooltip(
+                message: 'Tap for chart details',
+                child: Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: isSelected
+                      ? const Color(0xFFF97316)
+                      : Colors.grey.shade400,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+// ---------------------------------------------------------------------------
+// Footer
+// ---------------------------------------------------------------------------
 
 class _Footer extends StatelessWidget {
   const _Footer({required this.result});
@@ -206,3 +332,4 @@ class _Footer extends StatelessWidget {
         ),
       );
 }
+
