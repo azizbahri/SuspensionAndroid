@@ -1,0 +1,47 @@
+name: suspension_android
+description: Motorcycle suspension DAQ analysis application — pure Flutter, no backend server.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Routing
+  go_router: ^14.0.0
+
+  # Charts
+  fl_chart: ^0.68.0
+
+  # File picker (CSV import via Storage Access Framework)
+  file_picker: ^8.0.7
+
+  # Persistent settings (simulator defaults, etc.)
+  shared_preferences: ^2.2.3
+
+  # App documents directory for JSON storage
+  path_provider: ^2.1.3
+
+  # UUID generation for session/bike IDs
+  uuid: ^4.4.0
+
+  # CSV parsing (for file-based import)
+  csv: ^6.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^4.0.0
+
+  # Mocking for unit tests
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true
