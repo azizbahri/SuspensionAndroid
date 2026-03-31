@@ -76,29 +76,28 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
     final bikesAsync = ref.watch(bikesProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Debug Simulator'),
-        actions: [
-          Container(
-            margin: const EdgeInsets.all(8),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade100,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.orange),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Debug badge
+            Align(
+              alignment: Alignment.centerRight,
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.orange),
+                ),
+                child: const Text('DEBUG',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange)),
+              ),
             ),
-            child: const Text('DEBUG',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange)),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           if (_error != null)
             ErrorBanner(
               message: _error!,
@@ -242,6 +241,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
             ),
           ),
         ]),
+        ),
       ),
     );
   }
