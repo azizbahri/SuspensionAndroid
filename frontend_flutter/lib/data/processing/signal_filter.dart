@@ -73,7 +73,7 @@ class SignalFilter {
     }
 
     // Pad length: 3 × max(len(b), len(a)) matching scipy default.
-    final padLen = 3 * math.max(b.length, a.length); // = 9 for order-2
+    final int padLen = 3 * math.max(b.length, a.length); // = 9 for order-2
 
     if (n <= padLen) {
       // Signal too short to pad safely — return as-is.

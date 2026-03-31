@@ -2,6 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../../lib/core/error/result.dart';
 
+// ValidationException is used as a concrete AppException test double.
+// AppException is sealed and cannot be sub-classed outside its own library.
+const _testException = ValidationException('test error');
+
 void main() {
   group('Result<T>', () {
     test('Success.isSuccess is true', () {
@@ -11,7 +15,7 @@ void main() {
     });
 
     test('Failure.isFailure is true', () {
-      const r = Failure<int>(NetworkExceptionStub());
+      const r = Failure<int>(_testException);
       expect(r.isFailure, isTrue);
       expect(r.isSuccess, isFalse);
     });
@@ -22,7 +26,7 @@ void main() {
     });
 
     test('Failure.dataOrThrow throws the exception', () {
-      const r = Failure<String>(NetworkExceptionStub());
+      const r = Failure<String>(_testException);
       expect(() => r.dataOrThrow, throwsA(isA<AppException>()));
     });
 
@@ -33,7 +37,7 @@ void main() {
     });
 
     test('Failure.fold calls onFailure', () {
-      const r = Failure<int>(NetworkExceptionStub());
+      const r = Failure<int>(_testException);
       final out = r.fold(
           onSuccess: (_) => 'ok', onFailure: (e) => e.message);
       expect(out, 'test error');
@@ -57,9 +61,4 @@ void main() {
       expect(e, isA<AppException>());
     });
   });
-}
-
-// Test stub implementing AppException to avoid importing HardwareException
-final class NetworkExceptionStub extends AppException {
-  const NetworkExceptionStub() : super('test error');
 }

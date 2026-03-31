@@ -3,21 +3,21 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/local/bike_storage.dart';
-import '../data/local/session_storage.dart';
-import '../data/repositories/analysis_repository_impl.dart';
-import '../data/repositories/bike_repository_impl.dart';
-import '../data/repositories/session_repository_impl.dart';
-import '../data/repositories/settings_repository_impl.dart';
-import '../domain/entities/analysis_result.dart';
-import '../domain/entities/bike_profile.dart';
-import '../domain/entities/session.dart';
-import '../domain/repositories/analysis_repository.dart';
-import '../domain/repositories/bike_repository.dart';
-import '../domain/repositories/session_repository.dart';
-import '../domain/repositories/settings_repository.dart';
-import '../domain/usecases/use_cases.dart';
-import '../core/error/result.dart';
+import '../../data/local/bike_storage.dart';
+import '../../data/local/session_storage.dart';
+import '../../data/repositories/analysis_repository_impl.dart';
+import '../../data/repositories/bike_repository_impl.dart';
+import '../../data/repositories/session_repository_impl.dart';
+import '../../data/repositories/settings_repository_impl.dart';
+import '../../domain/entities/analysis_result.dart';
+import '../../domain/entities/bike_profile.dart';
+import '../../domain/entities/session.dart';
+import '../../domain/repositories/analysis_repository.dart';
+import '../../domain/repositories/bike_repository.dart';
+import '../../domain/repositories/session_repository.dart';
+import '../../domain/repositories/settings_repository.dart';
+import '../../domain/usecases/use_cases.dart';
+import '../../core/error/result.dart';
 
 // ---------------------------------------------------------------------------
 // Storage layer (singleton)

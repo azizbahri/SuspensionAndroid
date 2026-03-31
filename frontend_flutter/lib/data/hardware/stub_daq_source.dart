@@ -11,7 +11,7 @@ import 'data_source.dart';
 /// Replace this class body with a real USB serial / custom protocol driver
 /// once the DAQ hardware and its communication protocol are known.
 class StubDaqSource extends DataSource {
-  const StubDaqSource();
+  StubDaqSource();
 
   @override
   String get name => 'USB OTG DAQ (not connected)';

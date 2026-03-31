@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/entities/analysis_result.dart';
 import '../../../domain/entities/session.dart';
+import '../../../domain/repositories/analysis_repository.dart';
 import '../../providers/providers.dart';
 import '../../widgets/diagnostic_card.dart';
 import '../../widgets/error_banner.dart';
