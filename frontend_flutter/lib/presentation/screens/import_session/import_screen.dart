@@ -87,9 +87,9 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     final bikesAsync = ref.watch(bikesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Import Session')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           if (_error != null)
             ErrorBanner(
@@ -195,6 +195,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
             ),
           ),
         ]),
+        ),
       ),
     );
   }

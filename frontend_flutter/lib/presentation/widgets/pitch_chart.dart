@@ -6,6 +6,8 @@ import '../../domain/entities/analysis_result.dart';
 /// Line chart showing pitch angle (°) and longitudinal acceleration (g)
 /// over time. Two vertically-stacked sub-charts share the same time axis,
 /// mirroring the React PitchChart component.
+///
+/// Dark-themed: dark background, white-tinted grid, light axis labels.
 class PitchChart extends StatelessWidget {
   const PitchChart({
     super.key,
@@ -21,6 +23,11 @@ class PitchChart extends StatelessWidget {
   /// derived from [LayoutBuilder] constraints when using this chart full-screen.
   final double subChartHeight;
 
+  // ── Dark chart palette ─────────────────────────────────────────────────────
+  static const _bg = Color(0xFF111827);
+  static const _gridColor = Color(0x26FFFFFF);
+  static const _axisColor = Color(0xFFD1D5DB);
+
   @override
   Widget build(BuildContext context) {
     // Downsample for rendering performance on large captures.
@@ -35,11 +42,11 @@ class PitchChart extends StatelessWidget {
     }
 
     if (times.isEmpty) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Text('No pitch data available.'),
-        ),
+      return Container(
+        color: _bg,
+        padding: const EdgeInsets.all(16),
+        child: const Text('No pitch data available.',
+            style: TextStyle(color: Colors.white70)),
       );
     }
 
@@ -48,51 +55,54 @@ class PitchChart extends StatelessWidget {
     final maxAccel = accels.reduce((a, b) => a > b ? a : b);
     final minAccel = accels.reduce((a, b) => a < b ? a : b);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (title.isNotEmpty) ...[
-              Text(title, style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: 4),
-            ],
-            if (title.isNotEmpty)
-              Wrap(spacing: 16, runSpacing: 2, children: [
-                _stat(context, 'Peak pitch', '${maxPitch.toStringAsFixed(1)}°'),
-                _stat(context, 'Min pitch', '${minPitch.toStringAsFixed(1)}°'),
-                _stat(context, 'Peak accel', '${maxAccel.toStringAsFixed(2)} g'),
-                _stat(context, 'Min accel', '${minAccel.toStringAsFixed(2)} g'),
-              ]),
-            if (title.isNotEmpty) const SizedBox(height: 12),
-
-            // ── Pitch sub-chart ──────────────────────────────────────────
-            SizedBox(
-              height: subChartHeight,
-              child: _lineChart(
-                times: times,
-                values: pitches,
-                color: const Color(0xFF3B82F6),
-                showBottomTitles: false,
-                yAxisLabel: 'Pitch (°)',
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // ── Accel X sub-chart ────────────────────────────────────────
-            SizedBox(
-              height: subChartHeight,
-              child: _lineChart(
-                times: times,
-                values: accels,
-                color: const Color(0xFFF59E0B),
-                showBottomTitles: true,
-                yAxisLabel: 'Accel X (g)',
-              ),
-            ),
+    return Container(
+      color: _bg,
+      padding: const EdgeInsets.fromLTRB(12, 12, 8, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title.isNotEmpty) ...[
+            Text(title,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
           ],
-        ),
+          if (title.isNotEmpty)
+            Wrap(spacing: 16, runSpacing: 2, children: [
+              _stat('Peak pitch', '${maxPitch.toStringAsFixed(1)}°'),
+              _stat('Min pitch', '${minPitch.toStringAsFixed(1)}°'),
+              _stat('Peak accel', '${maxAccel.toStringAsFixed(2)} g'),
+              _stat('Min accel', '${minAccel.toStringAsFixed(2)} g'),
+            ]),
+          if (title.isNotEmpty) const SizedBox(height: 12),
+
+          // ── Pitch sub-chart ──────────────────────────────────────────
+          SizedBox(
+            height: subChartHeight,
+            child: _lineChart(
+              times: times,
+              values: pitches,
+              color: const Color(0xFF60A5FA), // blue-400
+              showBottomTitles: false,
+              yAxisLabel: 'Pitch (°)',
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // ── Accel X sub-chart ────────────────────────────────────────
+          SizedBox(
+            height: subChartHeight,
+            child: _lineChart(
+              times: times,
+              values: accels,
+              color: const Color(0xFFFBBF24), // amber-400
+              showBottomTitles: true,
+              yAxisLabel: 'Accel X (g)',
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -120,19 +130,22 @@ class PitchChart extends StatelessWidget {
             belowBarData: BarAreaData(show: false),
           ),
         ],
-        borderData: FlBorderData(show: false),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(color: const Color(0xFF374151)),
+        ),
         gridData: FlGridData(
           show: true,
-          drawVerticalLine: false,
-          getDrawingHorizontalLine: (_) => FlLine(
-            color: Colors.grey.shade200,
-            strokeWidth: 1,
-          ),
+          drawVerticalLine: true,
+          getDrawingHorizontalLine: (_) =>
+              FlLine(color: _gridColor, strokeWidth: 1),
+          getDrawingVerticalLine: (_) =>
+              FlLine(color: _gridColor, strokeWidth: 1),
         ),
         extraLinesData: ExtraLinesData(horizontalLines: [
           HorizontalLine(
             y: 0,
-            color: Colors.grey.shade400,
+            color: Colors.white30,
             strokeWidth: 1,
             dashArray: [4, 4],
           ),
@@ -143,7 +156,7 @@ class PitchChart extends StatelessWidget {
               quarterTurns: -1,
               child: Text(yAxisLabel,
                   style: const TextStyle(
-                      fontSize: 9, color: Color(0xFF6B7280))),
+                      fontSize: 9, color: _axisColor)),
             ),
             axisNameSize: 16,
             sideTitles: SideTitles(
@@ -155,7 +168,8 @@ class PitchChart extends StatelessWidget {
                 }
                 return Text(
                   v.toStringAsFixed(0),
-                  style: const TextStyle(fontSize: 9),
+                  style: const TextStyle(
+                      fontSize: 9, color: _axisColor),
                 );
               },
             ),
@@ -168,7 +182,7 @@ class PitchChart extends StatelessWidget {
             axisNameWidget: showBottomTitles
                 ? const Text('Time (s)',
                     style: TextStyle(
-                        fontSize: 9, color: Color(0xFF6B7280)))
+                        fontSize: 9, color: _axisColor))
                 : null,
             axisNameSize: showBottomTitles ? 16 : 0,
             sideTitles: SideTitles(
@@ -180,7 +194,8 @@ class PitchChart extends StatelessWidget {
                 }
                 return Text(
                   v.toStringAsFixed(0),
-                  style: const TextStyle(fontSize: 9),
+                  style: const TextStyle(
+                      fontSize: 9, color: _axisColor),
                 );
               },
             ),
@@ -190,15 +205,16 @@ class PitchChart extends StatelessWidget {
     );
   }
 
-  Widget _stat(BuildContext context, String label, String value) => Row(
+  Widget _stat(String label, String value) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('$label: ', style: Theme.of(context).textTheme.bodySmall),
+          Text('$label: ',
+              style: const TextStyle(fontSize: 11, color: _axisColor)),
           Text(value,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(fontWeight: FontWeight.bold)),
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white)),
         ],
       );
 }

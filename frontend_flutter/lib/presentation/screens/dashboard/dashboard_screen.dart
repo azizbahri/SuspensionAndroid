@@ -24,8 +24,8 @@ class DashboardScreen extends ConsumerWidget {
         0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Suspension Study')),
-      body: SingleChildScrollView(
+      body: SafeArea(
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -127,6 +127,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

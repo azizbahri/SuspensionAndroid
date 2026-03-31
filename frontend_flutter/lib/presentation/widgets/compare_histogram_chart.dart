@@ -22,8 +22,7 @@ class CompareSeriesData {
 /// Multi-session grouped bar chart used on the Compare page.
 ///
 /// Each bin position gets one bar per session, rendered side-by-side in the
-/// session colour. Supports full grid (horizontal + vertical), correct axis
-/// labels, optional reference lines, and an interactive touch tooltip.
+/// session colour. Dark-themed: dark background, white grid, light labels.
 class CompareHistogramChart extends StatefulWidget {
   const CompareHistogramChart({
     super.key,
@@ -57,6 +56,12 @@ class CompareHistogramChart extends StatefulWidget {
 class _CompareHistogramChartState extends State<CompareHistogramChart> {
   int? _touchedGroupIndex;
 
+  // ── Dark chart palette ─────────────────────────────────────────────────────
+  static const _bg = Color(0xFF111827);
+  static const _gridColor = Color(0x26FFFFFF);
+  static const _axisColor = Color(0xFFD1D5DB);
+  static const _borderColor = Color(0xFF374151);
+
   // ---------------------------------------------------------------------------
   // Bar geometry
   // ---------------------------------------------------------------------------
@@ -81,7 +86,7 @@ class _CompareHistogramChartState extends State<CompareHistogramChart> {
       axisSide: meta.axisSide,
       child: Text(
         value.toInt().toString(),
-        style: const TextStyle(fontSize: 9, color: Color(0xFF6B7280)),
+        style: const TextStyle(fontSize: 9, color: Color(0xFFD1D5DB)),
       ),
     );
   }
@@ -145,129 +150,130 @@ class _CompareHistogramChartState extends State<CompareHistogramChart> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ── Legend ────────────────────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Wrap(
-            spacing: 16,
-            runSpacing: 4,
-            children: widget.series
-                .map((s) => _LegendItem(color: s.color, label: s.label))
-                .toList(),
+    return Container(
+      color: _bg,
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Legend ──────────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 4,
+              children: widget.series
+                  .map((s) => _LegendItem(color: s.color, label: s.label))
+                  .toList(),
+            ),
           ),
-        ),
-        const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
-        // ── Chart ─────────────────────────────────────────────────────────────
-        Expanded(
-          child: BarChart(
-            BarChartData(
-              minY: 0,
-              barGroups: _buildGroups(),
+          // ── Chart ───────────────────────────────────────────────────────────
+          Expanded(
+            child: BarChart(
+              BarChartData(
+                minY: 0,
+                barGroups: _buildGroups(),
 
-              // Full border frame.
-              borderData: FlBorderData(
-                show: true,
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-
-              // Full grid: both H and V lines.
-              gridData: FlGridData(
-                show: true,
-                drawHorizontalLine: true,
-                drawVerticalLine: true,
-                getDrawingHorizontalLine: (_) => FlLine(
-                  color: Colors.grey.shade200,
-                  strokeWidth: 1,
+                // Dark border frame.
+                borderData: FlBorderData(
+                  show: true,
+                  border: Border.all(color: _borderColor),
                 ),
-                getDrawingVerticalLine: (_) => FlLine(
-                  color: Colors.grey.shade200,
-                  strokeWidth: 1,
-                ),
-              ),
 
-              // Axis titles.
-              titlesData: FlTitlesData(
-                rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false)),
-                // Y axis — Time (%)
-                leftTitles: AxisTitles(
-                  axisNameWidget: RotatedBox(
-                    quarterTurns: -1,
-                    child: Text(
-                      widget.yAxisLabel,
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFF6B7280)),
+                // Full grid: white-tinted H and V lines.
+                gridData: FlGridData(
+                  show: true,
+                  drawHorizontalLine: true,
+                  drawVerticalLine: true,
+                  getDrawingHorizontalLine: (_) =>
+                      FlLine(color: _gridColor, strokeWidth: 1),
+                  getDrawingVerticalLine: (_) =>
+                      FlLine(color: _gridColor, strokeWidth: 1),
+                ),
+
+                // Axis titles.
+                titlesData: FlTitlesData(
+                  rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  // Y axis — Time (%)
+                  leftTitles: AxisTitles(
+                    axisNameWidget: RotatedBox(
+                      quarterTurns: -1,
+                      child: Text(
+                        widget.yAxisLabel,
+                        style: const TextStyle(
+                            fontSize: 11, color: _axisColor),
+                      ),
+                    ),
+                    axisNameSize: 22,
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 38,
+                      getTitlesWidget: (value, meta) {
+                        if (value == meta.max) return const SizedBox.shrink();
+                        if (value % 5 != 0) return const SizedBox.shrink();
+                        return SideTitleWidget(
+                          axisSide: meta.axisSide,
+                          child: Text(
+                            '${value.toInt()}',
+                            style: const TextStyle(
+                                fontSize: 9, color: _axisColor),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                  axisNameSize: 22,
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 38,
-                    getTitlesWidget: (value, meta) {
-                      if (value == meta.max) return const SizedBox.shrink();
-                      if (value % 5 != 0) return const SizedBox.shrink();
-                      return SideTitleWidget(
-                        axisSide: meta.axisSide,
-                        child: Text(
-                          '${value.toInt()}',
-                          style: const TextStyle(
-                              fontSize: 9, color: Color(0xFF6B7280)),
-                        ),
-                      );
-                    },
+                  // X axis — Travel (%) or Velocity (mm/s)
+                  bottomTitles: AxisTitles(
+                    axisNameWidget: Text(
+                      widget.xAxisLabel,
+                      style: const TextStyle(
+                          fontSize: 11, color: _axisColor),
+                    ),
+                    axisNameSize: 22,
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 20,
+                      getTitlesWidget: _xTitleWidget,
+                    ),
                   ),
                 ),
-                // X axis — Travel (%) or Velocity (mm/s)
-                bottomTitles: AxisTitles(
-                  axisNameWidget: Text(
-                    widget.xAxisLabel,
-                    style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF6B7280)),
-                  ),
-                  axisNameSize: 22,
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 20,
-                    getTitlesWidget: _xTitleWidget,
-                  ),
+
+                // Reference lines (sag, bottoming, LS/HS, etc.).
+                extraLinesData: ExtraLinesData(
+                  verticalLines: widget.referenceLines,
                 ),
-              ),
 
-              // Reference lines (sag, bottoming, LS/HS, etc.).
-              extraLinesData: ExtraLinesData(
-                verticalLines: widget.referenceLines,
-              ),
-
-              // Touch tooltip.
-              barTouchData: BarTouchData(
-                touchCallback: (event, response) {
-                  setState(() {
-                    if (response != null && response.spot != null &&
-                        event is! FlTapUpEvent &&
-                        event is! FlPointerExitEvent) {
-                      _touchedGroupIndex =
-                          response.spot!.touchedBarGroupIndex;
-                    } else {
-                      _touchedGroupIndex = null;
-                    }
-                  });
-                },
-                touchTooltipData: BarTouchTooltipData(
-                  getTooltipColor: (_) =>
-                      Colors.grey.shade900.withOpacity(0.85),
-                  getTooltipItem: _tooltipItem,
+                // Touch tooltip.
+                barTouchData: BarTouchData(
+                  touchCallback: (event, response) {
+                    setState(() {
+                      if (response != null &&
+                          response.spot != null &&
+                          event is! FlTapUpEvent &&
+                          event is! FlPointerExitEvent) {
+                        _touchedGroupIndex =
+                            response.spot!.touchedBarGroupIndex;
+                      } else {
+                        _touchedGroupIndex = null;
+                      }
+                    });
+                  },
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (_) =>
+                        const Color(0xFF1F2937).withOpacity(0.92),
+                    getTooltipItem: _tooltipItem,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -293,7 +299,7 @@ class _LegendItem extends StatelessWidget {
         ),
         const SizedBox(width: 5),
         Text(label,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF374151))),
+            style: const TextStyle(fontSize: 12, color: Color(0xFFD1D5DB))),
       ],
     );
   }

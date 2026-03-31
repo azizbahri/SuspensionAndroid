@@ -99,29 +99,14 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
   @override
   Widget build(BuildContext context) {
     final sessionsAsync = ref.watch(sessionsProvider);
-    final showingChart = _results != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(showingChart ? _activeGraph.label : 'Compare Sessions'),
-        actions: showingChart
-            ? [
-                TextButton.icon(
-                  onPressed: () => setState(() {
-                    _results = null;
-                    _graphMenuOpen = false;
-                  }),
-                  icon: const Icon(Icons.group, size: 16, color: Colors.white),
-                  label: const Text('Sessions',
-                      style: TextStyle(color: Colors.white, fontSize: 12)),
-                ),
-              ]
-            : null,
-      ),
-      body: sessionsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => ErrorBanner(message: e.toString()),
-        data: _buildBody,
+      body: SafeArea(
+        child: sessionsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => ErrorBanner(message: e.toString()),
+          data: _buildBody,
+        ),
       ),
     );
   }
@@ -264,28 +249,17 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
   Widget _buildChartView() {
     return Stack(
       children: [
-        // ── Full-screen chart ───────────────────────────────────────────────
+        // ── Full-screen chart (fixed, fills screen) ─────────────────────────
         Positioned.fill(
           child: LayoutBuilder(
-            builder: (ctx, c) => InteractiveViewer(
-              scaleEnabled: true,
-              panEnabled: true,
-              minScale: 0.5,
-              maxScale: 6.0,
-              boundaryMargin: const EdgeInsets.all(40),
-              child: SizedBox(
-                width: c.maxWidth,
-                height: c.maxHeight,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 52, 8, 8),
-                  child: _buildActiveChart(),
-                ),
-              ),
+            builder: (ctx, c) => Padding(
+              padding: const EdgeInsets.fromLTRB(8, 44, 8, 8),
+              child: _buildActiveChart(),
             ),
           ),
         ),
 
-        // ── Stats overlay (semi-transparent top bar) ────────────────────────
+        // ── Stats + back button overlay (semi-transparent top bar) ──────────
         Positioned(
           top: 0,
           left: 0,
@@ -294,7 +268,27 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
             color: Colors.black.withOpacity(0.55),
             padding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: _buildStatsRow(),
+            child: Row(children: [
+              // Back to session selector
+              GestureDetector(
+                onTap: () => setState(() {
+                  _results = null;
+                  _graphMenuOpen = false;
+                }),
+                child: const Icon(Icons.arrow_back_ios_new,
+                    size: 14, color: Colors.white70),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _activeGraph.label,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: _buildStatsRow()),
+            ]),
           ),
         ),
 

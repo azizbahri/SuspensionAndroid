@@ -27,12 +27,12 @@ class _CalibrateScreenState extends ConsumerState<CalibrateScreen> {
     final bikesAsync = ref.watch(bikesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Calibrate')),
-      body: bikesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => ErrorBanner(message: e.toString()),
-        data: (bikes) => SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: bikesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => ErrorBanner(message: e.toString()),
+          data: (bikes) => SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -79,6 +79,7 @@ class _CalibrateScreenState extends ConsumerState<CalibrateScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 

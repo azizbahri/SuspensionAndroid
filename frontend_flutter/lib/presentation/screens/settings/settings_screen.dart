@@ -12,8 +12,8 @@ class SettingsScreen extends ConsumerWidget {
     final debugModeAsync = ref.watch(debugModeProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
+      body: SafeArea(
+        child: ListView(
         children: [
           const ListTile(
             title: Text('Suspension Study'),
@@ -64,6 +64,7 @@ class SettingsScreen extends ConsumerWidget {
             leading: Icon(Icons.memory),
           ),
         ],
+      ),
       ),
     );
   }

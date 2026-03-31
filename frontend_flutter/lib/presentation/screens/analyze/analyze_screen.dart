@@ -105,31 +105,14 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen> {
   @override
   Widget build(BuildContext context) {
     final sessionsAsync = ref.watch(sessionsProvider);
-    final showingChart = _result != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(showingChart ? _activeGraph.label : 'Analyze'),
-        actions: showingChart
-            ? [
-                TextButton.icon(
-                  onPressed: () => setState(() {
-                    _result = null;
-                    _graphMenuOpen = false;
-                  }),
-                  icon: const Icon(Icons.person, size: 16,
-                      color: Colors.white),
-                  label: const Text('Session',
-                      style:
-                          TextStyle(color: Colors.white, fontSize: 12)),
-                ),
-              ]
-            : null,
-      ),
-      body: sessionsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => ErrorBanner(message: e.toString()),
-        data: _buildBody,
+      body: SafeArea(
+        child: sessionsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => ErrorBanner(message: e.toString()),
+          data: _buildBody,
+        ),
       ),
     );
   }
@@ -151,7 +134,7 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen> {
     final session = _findSession(sessions);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (_error != null)
           ErrorBanner(
@@ -211,26 +194,19 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen> {
   // Full-screen chart view
   // ---------------------------------------------------------------------------
 
+  // Height (px) of the stats overlay bar at the top of the chart view.
+  // Matches the top padding (44) + bottom padding (8) applied around the chart.
+  static const _chartPaddingTotal = 52.0;
+
   Widget _buildChartView() {
     return Stack(
       children: [
-        // ── Full-screen chart ─────────────────────────────────────────────────
+        // ── Full-screen chart (fixed, fills screen) ───────────────────────────
         Positioned.fill(
           child: LayoutBuilder(
-            builder: (ctx, c) => InteractiveViewer(
-              scaleEnabled: true,
-              panEnabled: true,
-              minScale: 0.5,
-              maxScale: 6.0,
-              boundaryMargin: const EdgeInsets.all(40),
-              child: SizedBox(
-                width: c.maxWidth,
-                height: c.maxHeight,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 52, 8, 8),
-                  child: _buildActiveChart(c.maxHeight),
-                ),
-              ),
+            builder: (ctx, c) => Padding(
+              padding: const EdgeInsets.fromLTRB(8, 44, 8, 8),
+              child: _buildActiveChart(c.maxHeight - _chartPaddingTotal),
             ),
           ),
         ),
@@ -244,12 +220,34 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen> {
             color: Colors.black.withOpacity(0.55),
             padding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: Text(
-              _buildStatsString(),
-              style:
-                  const TextStyle(fontSize: 11, color: Colors.white70),
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: Row(children: [
+              // Back to session selector
+              GestureDetector(
+                onTap: () => setState(() {
+                  _result = null;
+                  _graphMenuOpen = false;
+                }),
+                child: const Icon(Icons.arrow_back_ios_new,
+                    size: 14, color: Colors.white70),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _activeGraph.label,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _buildStatsString(),
+                  style:
+                      const TextStyle(fontSize: 11, color: Colors.white70),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ]),
           ),
         ),
 
